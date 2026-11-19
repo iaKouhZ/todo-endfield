@@ -180,6 +180,20 @@ nginx 片段里刻意**不写** `location /`：面板的站点配置通常已经
 - 数据概况与配置摘要
 - 退出后台
 
+- 注销全部设备可立即使已有网页登录会话失效。Flutter 里保存了密码的设备可以自动恢复连接。
+- 同一 IP 连续输错 5 次会锁定 15 分钟。反向代理部署由 Web 服务器负责配置可信来源的真实客户端地址。
+- 维护页支持 JSON 和 SQLite 备份。JSON 导入会覆盖任务数据，并保留当前登录配置与会话状态。若要上传接近 10 MB 的备份，PHP 的 `upload_max_filesize` 应至少为 `10M`，且 `post_max_size` 应更大。
+
+### 从 1.0.0 迁移已有数据
+
+准备一份独立的 1.0.1 目录，并在迁移期间暂停旧站写入。先备份旧库及其 WAL，再用新版代码读取旧库的**副本**导出 JSON。
+
+1. 在新版目录把 `config.php` 中的 `db` 临时指向旧库副本。
+2. 执行 `php -r 'require "lib/core.php"; require "lib/backup.php"; echo json_encode(tl_backup_export_json(), JSON_THROW_ON_ERROR);' > todo-backup.json`。
+3. 将 `db` 恢复为指向一个全新库，启动新版并在「维护」页导入该 JSON。核对分类、任务和完成记录后，再切换部署。
+
+旧库的表约束和会话表通过创建新库获得。请保留旧库备份用于回退。
+
 ---
 
 ## 目录结构

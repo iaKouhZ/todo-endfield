@@ -42,11 +42,12 @@ if ($error === null && tl_admin()) {
 
 $scheme = tl_scheme();
 
+$flash = tl_flash_take();
 tl_view_head(['title' => cfg('app.name') . ' · 登录', 'scheme' => $scheme]);
 ?>
 <div class="tl-shell">
   <?php tl_topbar('login'); ?>
-  <?php tl_flash_view(); ?>
+  <?php tl_flash_view($flash); ?>
 
   <div class="tl-gate">
     <div class="tl-gate__art">

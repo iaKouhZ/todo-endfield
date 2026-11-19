@@ -31,11 +31,12 @@ if (!in_array($view, TL_ADMIN_VIEWS, true)) {
 $data = tl_admin_data();
 ['categories' => $categories, 'globalCounts' => $globalCounts, 'now' => $now] = $data;
 
+$flash = tl_flash_take();
 tl_view_head(['title' => cfg('app.name') . ' · 后台', 'scheme' => tl_scheme()]);
 ?>
 <div class="tl-shell">
   <?php tl_topbar('admin'); ?>
-  <?php tl_flash_view(); ?>
+  <?php tl_flash_view($flash); ?>
 
   <div class="tl-masthead">
     <div>

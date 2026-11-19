@@ -672,6 +672,28 @@ function tl_admin_render_system(array $data): void
       </main>
 
       <aside class="tl-aside">
+        <div class="tl-card">
+          <div class="tl-card__head"><span class="tl-card__title">数据备份与恢复</span></div>
+          <form method="post" action="<?= e(tl_action_url()) ?>" data-no-pjax>
+            <?= tl_csrf_field() ?>
+            <input type="hidden" name="op" value="export">
+            <button class="eds-button" type="submit" name="format" value="json">导出 JSON</button>
+            <button class="eds-button" type="submit" name="format" value="sqlite">导出 SQLite</button>
+          </form>
+          <form method="post" action="<?= e(tl_action_url()) ?>" enctype="multipart/form-data" data-no-pjax>
+            <?= tl_csrf_field() ?>
+            <input type="hidden" name="op" value="import">
+            <input type="hidden" name="back" value="<?= e(tl_admin_url(['view' => 'system'])) ?>">
+            <label class="tl-field">
+              <span class="tl-field__label">JSON 备份文件（最多 10 MB）</span>
+              <input type="file" name="backup" accept=".json,application/json" required>
+            </label>
+            <button class="eds-button eds-button--danger" type="submit"
+                    data-confirm="导入备份将覆盖当前的分类、待办和完成记录。"
+                    data-confirm-title="覆盖导入">导入 JSON 备份</button>
+          </form>
+        </div>
+
         <div class="tl-card tl-card--raised">
           <div class="tl-card__head">
             <span class="tl-card__title">一键清理</span>

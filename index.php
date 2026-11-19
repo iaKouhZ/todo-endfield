@@ -108,11 +108,12 @@ $backUrl = tl_front_url(array_filter([
 
 $scheme = tl_scheme();
 
+$flash = tl_flash_take();
 tl_view_head(['title' => cfg('app.name') . ' · 追踪', 'scheme' => $scheme]);
 ?>
 <div class="tl-shell">
   <?php tl_topbar('front'); ?>
-  <?php tl_flash_view(); ?>
+  <?php tl_flash_view($flash); ?>
 
   <div class="tl-masthead">
     <div>

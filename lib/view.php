@@ -66,9 +66,8 @@ function tl_theme_switch(): void
 <?php
 }
 
-function tl_flash_view(): void
+function tl_flash_view(?array $flash): void
 {
-    $flash = tl_flash_take();
     if ($flash === null) {
         return;
     }

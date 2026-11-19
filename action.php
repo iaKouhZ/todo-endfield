@@ -20,6 +20,7 @@ declare(strict_types=1);
 
 require __DIR__ . '/lib/core.php';
 require __DIR__ . '/lib/tasks.php';
+require __DIR__ . '/lib/backup.php';
 
 tl_boot();
 
@@ -243,6 +244,54 @@ try {
         }
 
         /* --------------------------------------------------------------- 清理 */
+        case 'export': {
+            $format = $_POST['format'] ?? null;
+            $stamp = tl_now()->format('Ymd-His');
+            if ($format === 'json') {
+                $json = json_encode(tl_backup_export_json(), JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
+                header('Content-Type: application/json; charset=UTF-8');
+                header('Content-Disposition: attachment; filename="todo-' . $stamp . '.json"');
+                echo $json, "\n";
+                exit;
+            }
+            if ($format !== 'sqlite') {
+                throw new InvalidArgumentException('请选择 JSON 或 SQLite 备份格式。');
+            }
+            $path = tl_backup_export_sqlite();
+            try {
+                header('Content-Type: application/vnd.sqlite3');
+                header('Content-Disposition: attachment; filename="todo-' . $stamp . '.sqlite"');
+                header('Content-Length: ' . filesize($path));
+                readfile($path);
+            } finally {
+                unlink($path);
+            }
+            exit;
+        }
+
+        case 'import': {
+            $file = $_FILES['backup'] ?? [];
+            if (($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
+                throw new InvalidArgumentException('请选择可上传的 JSON 备份，文件大小须在 10 MB 以内。');
+            }
+            $path = $file['tmp_name'];
+            if (!is_uploaded_file($path) || $file['size'] > 10 * 1024 * 1024) {
+                throw new InvalidArgumentException('JSON 备份大小须在 10 MB 以内。');
+            }
+            try {
+                $payload = json_decode((string) file_get_contents($path), true, 64, JSON_THROW_ON_ERROR);
+            } catch (JsonException $error) {
+                throw new InvalidArgumentException('所选文件不是有效的 JSON 备份。', 0, $error);
+            }
+            if (!is_array($payload)) {
+                throw new InvalidArgumentException('所选文件不是有效的 JSON 备份。');
+            }
+            $count = tl_backup_import_json($payload);
+            $finish(sprintf('已恢复 %d 个分类、%d 项待办、%d 条发生记录和 %d 个子任务。',
+                $count['categories'], $count['tasks'], $count['task_occurrences'], $count['task_subitems']),
+                'ok', tl_admin_url(['view' => 'system']));
+        }
+
         case 'revoke_sessions': {
             tl_session_bump_version();
             tl_auth_clear('admin');

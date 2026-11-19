@@ -768,7 +768,7 @@ function tl_flash_take(): ?array
     if (!is_string($raw) || $raw === '') {
         return null;
     }
-    setcookie('tl_flash', '', tl_cookie_options(time() - 3600));
+    setcookie('tl_flash', '', tl_cookie_options(tl_now()->getTimestamp() - 3600));
     unset($_COOKIE['tl_flash']);
     $json = base64_decode(strtr($raw, '-_', '+/'), true);
     $data = is_string($json) ? json_decode($json, true) : null;
