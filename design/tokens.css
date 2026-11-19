@@ -1,0 +1,345 @@
+/* ============================================================================
+   EDS — Editorial Design System · tokens
+   ----------------------------------------------------------------------------
+   Extracted from src/styles/theme.css + src/client/41-mount-tokens.js.
+
+   WHAT THIS LAYER IS. Six kinds of decisions, no components:
+     1. surface / line / text roles        (paper, panel, hairline, ink)
+     2. the accent family                  (signal yellow, 武陵青 teal)
+     3. the accent-wash scale              (hover, selected, active, edge)
+     4. geometry                           (zero radius, full stadium)
+     5. type                               (stack, scale, tracking, figures)
+     6. motion, elevation, material, decor
+
+   THE THREE RULES THIS LAYER ENCODES
+     · Two schemes share ONE semantic vocabulary. Only values swap.
+     · One accent block repaints the whole system. Every accent-bearing
+       declaration reads a variable, so switching palette is one attribute.
+     · Every value here is a MEASURED pair: the comment gives the contrast
+       ratio against the surface it actually lands on. design/scripts/check-contrast.mjs
+       recomputes all of them and fails on drift.
+
+   USAGE
+     <html data-eds-scheme="light" data-eds-palette="signal">
+     <html data-eds-scheme="dark"  data-eds-palette="teal">
+
+   CONSTRAINT — scheme and palette belong on the SAME ELEMENT.
+   Several tokens are mode-dependent (`--eds-accent-text` resolves to the light
+   or dark stop). If the palette attribute lands on a descendant of the element
+   carrying the scheme, the ancestor's already-resolved derived values cannot
+   see the override. Keep both attributes on <html> (or on the same subtree
+   root). This is the same trap the source theme documents in
+   docs/engineering-notes.md § "变量必须声明在 body 而不是 :root".
+   ========================================================================= */
+
+/* ============================================================================
+   1. LIGHT — the default scheme. Cream paper, ink text.
+   ========================================================================= */
+:root {
+  color-scheme: light;
+
+  /* ---- surface ------------------------------------------------------------
+     Never pure white. #e8e8e2 carries a trace of warm grey so it reads as
+     PAPER rather than as a screen. */
+  --eds-surface-base: #e8e8e2;      /* app background, sidebar */
+  --eds-surface-raised: #f2f2ec;    /* panels, bubbles, inputs */
+  --eds-surface-sunken: #dcddd6;    /* wells, table headers, skeleton */
+  --eds-surface-overlay: #f2f2ec;   /* menus, popovers — deliberately OPAQUE */
+  --eds-surface-selector: #e8e8e2;  /* segmented-control track */
+  --eds-surface-code: #ecece6;      /* code blocks */
+
+  /* ---- line ---------------------------------------------------------------
+     Three weights, each earning its own role. A 1px hairline is the theme's
+     entire structural vocabulary — there are no shadows on paper. */
+  --eds-line-hairline: #d8d9d5;     /* row dividers, card edges */
+  --eds-line-strong: #b6b8b3;       /* button borders, emphasised rules */
+  --eds-line-contrast: #9a9d98;     /* separators that must survive a wash */
+
+  /* ---- text ---------------------------------------------------------------
+     All four steps clear AA on BOTH paper surfaces (base and raised). */
+  --eds-text-primary: #101110;      /* 15.38:1 paper · 16.84:1 panel */
+  --eds-text-secondary: #4a4c48;    /*  7.06:1 paper ·  7.73:1 panel */
+  --eds-text-tertiary: #6a6d68;     /*  4.27:1 paper ·  4.67:1 panel */
+  --eds-text-caption: #5a5d58;      /*  5.43:1 paper ·  5.95:1 panel */
+  --eds-text-dimmed: #9a9d98;       /*  2.23:1 — non-text chrome ONLY */
+  --eds-text-inverse: #f5f5f0;      /* on ink / on accent-dark fills */
+
+  /* ---- status -------------------------------------------------------------
+     Semantic state colours never follow the palette: an error is red in both
+     palettes. `-text` steps are separate because an iOS-style red tuned for
+     white-on-red fills is NOT legible as 12px red-on-paper text. */
+  --eds-status-error: #ff3b30;      /* fills, dots, icons */
+  --eds-status-error-text: #c62016; /* 4.72:1 paper · 5.16:1 panel */
+  --eds-status-success: #2f9e44;
+  --eds-status-warn: #d9822b;
+
+  /* ---- accent, mode-dependent stops ---------------------------------------
+     DECLARED BY THE PALETTE BLOCK, READ HERE. Kept as separate light/dark
+     stops because in light mode the bright accent is an ERASURE, not a colour
+     (signal yellow on cream is 1.07:1), so accent-as-text must dip to a dark
+     step of the same hue. Dark mode is the mirror image: the accent is already
+     bright against near-black. See § 4 for the raw values. */
+  --eds-accent-text: var(--eds-accent-text-light);
+  --eds-accent-text-soft: var(--eds-accent-text-light-soft);
+  --eds-glow-alpha: var(--eds-glow-light);
+
+  /* ---- accent wash scale ---------------------------------------------------
+     One accent, five strengths. Alpha is not copied between schemes: adding
+     luminance to near-black reads far louder than subtracting it from cream,
+     so dark mode uses HIGHER alphas for interaction and LOWER ones for
+     decoration. */
+  --eds-wash-weak: rgba(var(--eds-accent-rgb), 0.12);     /* skeleton, quiet tint */
+  --eds-wash-hover: rgba(var(--eds-accent-rgb), 0.16);    /* row / button hover */
+  --eds-wash-selected: rgba(var(--eds-accent-rgb), 0.22); /* selected row */
+  --eds-wash-active: rgba(var(--eds-accent-rgb), 0.26);   /* pressed */
+  --eds-wash-edge: rgba(var(--eds-accent-rgb), 0.55);     /* 2px accent rule */
+  /* Tables mix the accent INTO the surface instead of layering a wash over it,
+     so the result is one opaque colour that text can be measured against. */
+  --eds-wash-table: color-mix(in srgb, var(--eds-accent) 15%, var(--eds-surface-base));
+
+  /* ---- text that sits ON the accent --------------------------------------
+     Always ink, never white. Ink on 谷地黄 is 16.50:1; on 武陵青 9.88:1. */
+  --eds-text-on-accent: #101110;
+  /* Selection uses pure black (the reference's inverting highlight), a shade
+     harder than the ink used on chips. */
+  --eds-text-on-selection: #000;
+
+  /* ---- geometry -----------------------------------------------------------
+     Zero radius is the system's loudest single decision. `--eds-radius-full`
+     exists only for shapes that are ROUND BY NATURE (status dot, avatar,
+     spinner, stadium pill) — see components.css for the restore list.
+     corner-shape must be re-pinned wherever 999px is used: the host roots
+     corner-shape at superellipse(1.5), which draws a 999px radius as a
+     squircle, not a circle. */
+  --eds-radius-0: 0;
+  --eds-radius-pill: 999px;
+  --eds-corner-shape: round;
+  --eds-line-weight: 1px;
+
+  /* ---- type ---------------------------------------------------------------
+     The theme deliberately does NOT own the host's root font token (see
+     design/README.md § "Do not steal the root font"). --eds-font is the
+     system's own face, applied only to surfaces the system owns. */
+  --eds-font: Arial, "Helvetica Neue", "PingFang SC", "Microsoft YaHei", sans-serif;
+  --eds-font-display: "Arial Black", Arial, "PingFang SC", "Microsoft YaHei", sans-serif;
+  --eds-font-condensed: "Arial Narrow", Arial, sans-serif;
+
+  --eds-text-3xs: 8px;
+  --eds-text-2xs: 9px;
+  --eds-text-xs: 10px;
+  --eds-text-sm: 11px;
+  --eds-text-base: 12px;
+  --eds-text-md: 13px;
+  --eds-text-lg: 14px;
+  --eds-text-xl: 17px;
+  --eds-text-2xl: 19px;
+  --eds-text-3xl: 22px;
+  --eds-text-4xl: 39px;
+  /* Display sizes scale off the SMALLER viewport axis so neither a short nor a
+     narrow window can overflow, with a legibility floor and a ceiling that
+     stops the type shrinking on a 4K panel. */
+  --eds-text-display: clamp(44px, 13vw, 176px);
+  --eds-text-wordmark: clamp(26px, min(5.2vh, 4.8vw), 64px);
+
+  --eds-weight-regular: 400;
+  --eds-weight-medium: 500;
+  --eds-weight-semibold: 600;
+  --eds-weight-bold: 700;
+  --eds-weight-black: 900;
+
+  /* Tracking. Negative is reserved for large figures; everything else widens,
+     because tracked-out uppercase is how this system draws a technical label. */
+  --eds-tracking-tight: -0.01em;
+  --eds-tracking-label: 0.02em;
+  --eds-tracking-wide: 0.06em;
+  --eds-tracking-wider: 0.10em;
+  --eds-tracking-widest: 0.12em;
+  --eds-tracking-max: 0.26em;
+
+  --eds-leading-none: 1;
+  --eds-leading-tight: 0.80;   /* stacked wordmark rows: ink pitch, not em box */
+  --eds-leading-normal: 1.5;
+
+  /* Tabular figures everywhere a number can change while you look at it,
+     scoped to the element — never a body-wide feature setting. */
+  --eds-figure-features: "tnum" 1, "ss01" 1;
+
+  /* ---- motion -------------------------------------------------------------
+     One morph curve for shape changes, one slam curve for entrances, one sweep
+     curve for wipes, plus the durations those curves were tuned with. */
+  --eds-ease-morph: cubic-bezier(0.22, 0.72, 0.2, 1);
+  --eds-ease-slam: cubic-bezier(0.16, 1, 0.3, 1);
+  --eds-ease-sweep: cubic-bezier(0.33, 1, 0.68, 1);
+  --eds-ease-linear: linear;
+
+  --eds-dur-micro: 120ms;
+  --eds-dur-quick: 170ms;
+  --eds-dur-base: 220ms;
+  --eds-dur-slow: 300ms;
+  --eds-dur-morph: 420ms;
+  --eds-dur-wipe: 520ms;
+  --eds-dur-exit: 620ms;
+  --eds-dur-boot: 1750ms;
+  --eds-dur-hold: 3000ms;
+  --eds-delay-crossfade: 90ms;
+
+  /* ---- elevation ----------------------------------------------------------
+     The system has almost no elevation: paper is flat. What it has is LAYERS,
+     and the top two are absolute (they must beat any host z-index). */
+  --eds-z-behind: -1;    /* watermark inside a column, behind its text */
+  --eds-z-content: 0;    /* decor layer inside a frame */
+  --eds-z-hud: 900;      /* floating capsule over the header */
+  --eds-z-dialog: 1000;  /* band dialog */
+  --eds-z-celebration: 2147482000;
+  --eds-z-boot: 2147483000;
+  --eds-shadow-capsule: 0 3px 10px rgba(0, 0, 0, 0.22);
+  --eds-shadow-band: drop-shadow(0 10px 24px rgba(0, 0, 0, 0.35));
+
+  /* ---- scrim --------------------------------------------------------------
+     White display type needs a plate behind it, and the alpha is measured:
+     0.55 is the first step where white clears AA over BOTH light surfaces. */
+  --eds-scrim-celebration: rgba(16, 17, 16, 0.55);
+  --eds-scrim-dialog: rgba(6, 6, 6, 0.62);
+  --eds-scrim-dialog-dark: rgba(0, 0, 0, 0.80);
+
+  /* ---- material (bounded frost) ------------------------------------------
+     Alpha and blur per tier. Off by default; never full-window. */
+  --eds-glass-fill: 248 247 240;
+  --eds-glass-alpha: 0.80;
+  --eds-glass-blur: 14px;
+  --eds-glass-edge: rgb(255 255 255 / 0.65);
+  --eds-glass-sheen: rgb(255 255 255 / 0.35);
+
+  /* ---- decorative ---------------------------------------------------------
+     Decoration is measured on a DIFFERENT bar from foreground: it must be
+     visible but never compete. Floor ~1.06:1; ceiling ~1.6:1.
+       wordmark ink at 0.13 over paper = 1.310:1
+       contour strokes            = 1.288:1 – 1.758:1
+     The four stroke values are 8-digit hex (#RRGGBBAA) because they are painted
+     by canvas, which cannot read a CSS variable — JS reads these strings. */
+  --eds-decor-wordmark-alpha: 0.13;
+  --eds-decor-stroke: #beaf006b;      /* 谷地黄 light · 1.290:1 */
+  --eds-decor-stroke-alt: #14d0d07a;  /* 武陵青 light · 1.288:1 */
+
+  /* ---- grid ---------------------------------------------------------------
+     A faint repeating grid is the paper's texture, drawn at ~1.4% white so it
+     is felt rather than seen. */
+  --eds-grid-line: rgba(255, 255, 255, 0.014);
+  --eds-grid-rule: rgba(255, 255, 255, 0.010);
+  --eds-grid-pitch: 120px;
+}
+
+/* ============================================================================
+   2. DARK — ink paper, paper text. Same roles, values swapped.
+   ========================================================================= */
+[data-eds-scheme='dark'] {
+  color-scheme: dark;
+
+  --eds-surface-base: #101110;      /* not pure black: keeps a trace of green */
+  --eds-surface-raised: #181a18;
+  --eds-surface-sunken: #1e201d;
+  --eds-surface-overlay: #1c1e1c;
+  --eds-surface-selector: #2c2e2a;
+  --eds-surface-code: #181a18;
+
+  --eds-line-hairline: #343633;
+  --eds-line-strong: #4a4d49;
+  --eds-line-contrast: #5f6460;
+
+  --eds-text-primary: #f5f5f0;      /* 17.30:1 base · 16.00:1 panel */
+  --eds-text-secondary: #898d89;    /*  5.62:1 base ·  5.20:1 panel */
+  --eds-text-tertiary: #9a9d98;     /*  6.89:1 base ·  6.38:1 panel */
+  --eds-text-caption: #a4a6a1;      /*  7.70:1 base ·  7.12:1 panel */
+  --eds-text-dimmed: #70736f;       /*  3.94:1 base — non-text chrome ONLY */
+  --eds-text-inverse: #101110;
+
+  --eds-status-error: #ff6b61;
+  --eds-status-error-text: #ff6b61; /*  6.78:1 base ·  6.27:1 panel */
+  --eds-status-success: #4fbf5c;
+  --eds-status-warn: #ffb700;
+
+  --eds-accent-text: var(--eds-accent-text-dark);
+  --eds-accent-text-soft: var(--eds-accent-text-dark-soft);
+  --eds-glow-alpha: var(--eds-glow-dark);
+
+  --eds-wash-weak: rgba(var(--eds-accent-rgb), 0.14);
+  --eds-wash-hover: rgba(var(--eds-accent-rgb), 0.18);
+  --eds-wash-selected: rgba(var(--eds-accent-rgb), 0.20);
+  --eds-wash-active: rgba(var(--eds-accent-rgb), 0.28);
+  --eds-wash-edge: rgba(var(--eds-accent-rgb), 0.55);
+
+  --eds-glass-fill: 31 36 34;
+  --eds-glass-alpha: 0.76;
+  --eds-glass-edge: rgb(255 255 255 / 0.18);
+  --eds-glass-sheen: rgb(255 255 255 / 0.07);
+
+  /* Decoration gets QUIETER in dark mode: adding luminance to near-black is
+     louder than subtracting it from cream, so the same 0.13 that reads as a
+     whisper on paper shouts on ink. 0.13 -> 0.085 keeps it at 1.215:1. */
+  --eds-decor-wordmark-alpha: 0.085;
+  --eds-decor-stroke: #fff50033;      /* 谷地黄 dark · 1.734:1 */
+  --eds-decor-stroke-alt: #14d0d045;  /* 武陵青 dark · 1.755:1 */
+}
+
+/* ============================================================================
+   3. PALETTE — 谷地黄 (default) / 武陵青
+   ----------------------------------------------------------------------------
+   This is the ONLY block that carries an accent hue. Everything accent-bearing
+   in the system is a var() reference to what is declared here, so switching
+   palette is one attribute and zero JS repaint — provided both attributes sit
+   on the same element (see the header constraint).
+
+   WHY THE TEAL IS #14d0d0 AND NOT #0daaaa. The literal that was asked for
+   measured relative luminance 31.7% against signal yellow's 86.6%: on a
+   near-black page the cyan chip carried barely a third of the presence.
+   #14d0d0 keeps the same hue axis (R low, G == B — still teal, not grey-cyan)
+   and lifts luminance to 49.8%. The upper bound is real too: at #16dcdc the
+   light-mode chip separates from cream by only 1.39:1 (vs 1.56:1 here) and
+   reads white-ish. #14d0d0 is the brightest step that still looks like 武陵青
+   in BOTH schemes.
+   ========================================================================= */
+:root,
+[data-eds-palette='signal'] {
+  /* ---- 谷地黄 · signal yellow ------------------------------------------- */
+  --eds-accent: #fff500;
+  --eds-accent-rgb: 255, 245, 0;    /* same colour as channels, for rgba() */
+  --eds-accent-hover: #e8e000;      /* ink on it: 13.60:1 */
+  --eds-accent-on-light: #d9c700;   /* ink on it: 10.92:1 — the one slot that
+                                       must survive as a FILL on cream */
+  --eds-accent-text-light: #6b5d00;      /* 5.35:1 paper · 5.86:1 panel */
+  --eds-accent-text-light-soft: #3f3600; /* 9.82:1 paper · 10.75:1 panel */
+  --eds-accent-text-dark: #fff500;       /* 16.50:1 base · 15.26:1 panel */
+  --eds-accent-text-dark-soft: #a08a00;  /* 5.52:1 base · 5.11:1 panel */
+  --eds-glow-light: 0.08;
+  --eds-glow-dark: 0.05;
+}
+
+[data-eds-palette='teal'] {
+  /* ---- 武陵青 · teal-cyan ------------------------------------------------ */
+  --eds-accent: #14d0d0;
+  --eds-accent-rgb: 20, 208, 208;
+  --eds-accent-hover: #10b8b8;      /* matched to the yellow's PERCEPTUAL drop
+                                       (ΔY 19.7 vs 19.9), not to a percentage */
+  --eds-accent-on-light: #14d0d0;   /* cyan is already dark enough under ink:
+                                       needs no separate on-paper step */
+  --eds-accent-text-light: #006a6a; /* 5.22:1 paper · 5.72:1 panel */
+  --eds-accent-text-light-soft: #003f3f;
+  --eds-accent-text-dark: #14d0d0;  /* 9.88:1 base · 9.14:1 panel */
+  --eds-accent-text-dark-soft: #7ee7e7;
+  --eds-glow-light: 0.08;
+  --eds-glow-dark: 0.04;            /* a brighter accent lifts near-black faster */
+}
+
+/* Same-element palette + scheme: re-derive the mode-dependent roles here too,
+   so a subtree that flips both attributes never inherits a stale accent text. */
+[data-eds-palette='teal'][data-eds-scheme='light'] {
+  --eds-accent-text: var(--eds-accent-text-light);
+  --eds-accent-text-soft: var(--eds-accent-text-light-soft);
+  --eds-glow-alpha: var(--eds-glow-light);
+}
+
+[data-eds-palette='teal'][data-eds-scheme='dark'] {
+  --eds-accent-text: var(--eds-accent-text-dark);
+  --eds-accent-text-soft: var(--eds-accent-text-dark-soft);
+  --eds-glow-alpha: var(--eds-glow-dark);
+}

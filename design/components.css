@@ -1,0 +1,924 @@
+/* ============================================================================
+   EDS — Editorial Design System · components
+   ----------------------------------------------------------------------------
+   Reusable primitives extracted from the Endfield theme's sheet. Everything
+   here is self-contained: class names are `eds-*`, no host CSS-module class
+   names, no app tokens. It reads only tokens.css.
+
+   WHAT WAS KEPT, AND WHY.
+   The theme's own surfaces (boot plate, watermark, settings panel) are the
+   primitives that survived three app rewrites, so those are what got extracted:
+   hairline rows, an editorial numbered group header, a square/round chip pair,
+   the two action capsules, the drawn stadium, the boot rail, the scrim plate,
+   the glass card, the tabular figure run, and the wordmark.
+
+   WHAT WAS NOT KEPT. The ~1,300 lines of host-specific selector surgery in
+   src/styles/theme.css (`.Xyz123_sidebarCol` overrides, per-release patch
+   rules). That is conquest of a foreign DOM, not design. A design system that
+   ships it would freeze the host's internals into its API.
+
+   TWO TECHNIQUES ARE COPIED VERBATIM BECAUSE THEY ARE THE POINT:
+     · Square first, then re-round. Zero radius is applied broadly, then a short
+       allow-list restores the shapes that are round BY NATURE. Never the
+       reverse — restoring is a finite list, removing is not.
+     · Draw the stadium, don't round it. A 999px radius is at the mercy of the
+       host's `corner-shape`; two radial-gradient discs plus a band is not.
+       See .eds-stadium.
+   ========================================================================= */
+
+/* ============================================================================
+   BASE
+   ----------------------------------------------------------------------------
+   SCOPED TO `.eds-root` ON PURPOSE. A design system that ships a bare
+   `body { … }`, a global `::selection` or a global `*` is not reusable — it
+   restyles the host application the moment it is imported, and those
+   declarations INHERIT into third-party nodes injected anywhere on the page.
+   The source theme paid for this lesson twice: a `:root` font-token override
+   re-typed every installed widget, and a body-level `font-feature-settings`
+   leaked tabular figures into them. So everything below is reachable only
+   from an element that opted in with `.eds-root`.
+   ========================================================================= */
+.eds-root {
+  background: var(--eds-surface-base);
+  color: var(--eds-text-primary);
+  font-family: var(--eds-font);
+  /* Deliberately NO font-feature-settings here: figures are applied per element
+     by .eds-figure, never as an inherited page-wide feature. */
+}
+
+.eds-root ::selection {
+  color: var(--eds-text-on-selection);
+  background: var(--eds-accent);
+}
+
+.eds-root :focus-visible {
+  outline: 2px solid var(--eds-accent);
+  outline-offset: 1px;
+}
+
+.eds-root * {
+  scrollbar-width: thin;
+  scrollbar-color: var(--eds-line-hairline) transparent;
+}
+
+.eds-root ::-webkit-scrollbar { width: 10px; height: 10px; }
+.eds-root ::-webkit-scrollbar-thumb { border-radius: var(--eds-radius-0); background: var(--eds-line-hairline); }
+.eds-root ::-webkit-scrollbar-thumb:hover { background: var(--eds-accent); }
+.eds-root ::-webkit-scrollbar-track { background: transparent; }
+
+/* ============================================================================
+   SQUARE-FIRST GEOMETRY
+   Zero every classed element, then restore circles. The allow-list below is
+   SHORT and closed: status dots, avatars, spinners, icon buttons, stadiums.
+   If a new component needs a curve, add it here deliberately — do not switch
+   the strategy to "round by default and flatten what looks wrong".
+   ========================================================================= */
+.eds-square,
+.eds-square [class] {
+  border-radius: var(--eds-radius-0);
+}
+
+.eds-round-natural,
+.eds-round-natural::before,
+.eds-round-natural::after {
+  border-radius: var(--eds-radius-pill);
+  /* Load-bearing: a host that roots `corner-shape: superellipse(1.5)` draws a
+     999px radius as a squircle. Only `corner-shape: round` draws the disc. */
+  corner-shape: var(--eds-corner-shape);
+}
+
+.eds-dot {
+  display: inline-block;
+  flex: none;
+  width: 6px;
+  height: 6px;
+  background: var(--eds-accent);
+  border-radius: var(--eds-radius-pill);
+  corner-shape: var(--eds-corner-shape);
+}
+
+/* ============================================================================
+   SURFACES
+   Flat by construction. A surface earns its edge with a hairline, never a
+   shadow — except the two floating capsules, which cast a measured one because
+   they genuinely float over content.
+   ========================================================================= */
+.eds-panel {
+  background: var(--eds-surface-raised);
+  border: var(--eds-line-weight) solid var(--eds-line-hairline);
+}
+
+.eds-panel--sunken { background: var(--eds-surface-sunken); }
+.eds-panel--overlay { background: var(--eds-surface-overlay); }
+
+.eds-hairline {
+  border: 0;
+  border-top: var(--eds-line-weight) solid var(--eds-line-hairline);
+  margin: 0;
+}
+
+.eds-rule-accent {
+  border: 0;
+  border-left: 2px solid var(--eds-wash-edge);
+  padding-left: 10px;
+}
+
+/* ============================================================================
+   TYPE
+   ========================================================================= */
+.eds-display {
+  font-family: var(--eds-font-display);
+  font-size: var(--eds-text-display);
+  font-weight: var(--eds-weight-black);
+  line-height: var(--eds-leading-none);
+  letter-spacing: var(--eds-tracking-widest);
+  /* Tracking pushes the run right of centre; indent cancels it optically. */
+  text-indent: var(--eds-tracking-widest);
+}
+
+.eds-wordmark {
+  font-weight: var(--eds-weight-black);
+  letter-spacing: var(--eds-tracking-wider);
+  text-transform: uppercase;
+  line-height: var(--eds-leading-none);
+}
+
+/* Tracked-out uppercase is how the system draws a technical label. */
+.eds-kicker {
+  display: block;
+  font-size: var(--eds-text-2xs);
+  font-weight: var(--eds-weight-semibold);
+  letter-spacing: var(--eds-tracking-max);
+  text-transform: uppercase;
+  line-height: var(--eds-leading-normal);
+}
+
+.eds-label {
+  font-size: var(--eds-text-md);
+  font-weight: var(--eds-weight-medium);
+  line-height: var(--eds-leading-normal);
+  color: var(--eds-text-primary);
+}
+
+.eds-hint {
+  display: block;
+  margin-top: 2px;
+  font-size: var(--eds-text-base);
+  font-weight: var(--eds-weight-regular);
+  line-height: var(--eds-leading-normal);
+  color: var(--eds-text-tertiary);
+}
+
+/* Accent ink. `--eds-accent-text` is already the mode-correct stop: the bright
+   accent is invisible on paper, so light mode reads the deep step. Never
+   write `color: var(--eds-accent)` for text — that is the 1.07:1 bug. */
+.eds-accent-ink { color: var(--eds-accent-text); }
+
+/* Tabular figures, scoped to the element that owns the numbers. */
+.eds-figure {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: var(--eds-figure-features);
+  letter-spacing: var(--eds-tracking-tight);
+}
+
+.eds-figure--xl { font-size: var(--eds-text-4xl); font-weight: var(--eds-weight-bold); line-height: var(--eds-leading-none); }
+.eds-figure--lg { font-size: var(--eds-text-lg); font-weight: var(--eds-weight-bold); }
+.eds-figure--base { font-size: var(--eds-text-md); font-weight: var(--eds-weight-bold); }
+.eds-figure--sm { font-size: var(--eds-text-2xs); font-weight: var(--eds-weight-semibold); }
+
+/* ============================================================================
+   EDITORIAL GROUP HEADER
+   「01 主题 / THEME」 — a 4px accent rule, a numbered label, and an optional
+   latin line. Under a fully-latin locale the second line is DROPPED rather
+   than repeated; the latin run is editorial styling for the CJK name, not a
+   translation of it.
+   ========================================================================= */
+.eds-group-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding-bottom: 8px;
+  border-bottom: var(--eds-line-weight) solid var(--eds-line-hairline);
+  color: var(--eds-accent-text);
+}
+
+.eds-group-head__mark {
+  flex: 0 0 auto;
+  width: 4px;
+  height: 14px;
+  background: currentColor;
+}
+
+.eds-group-head__name {
+  font-size: var(--eds-text-base);
+  font-weight: var(--eds-weight-semibold);
+  letter-spacing: 0.14em;
+  line-height: var(--eds-leading-normal);
+}
+
+.eds-group-head__latin {
+  font-size: var(--eds-text-xs);
+  font-weight: var(--eds-weight-medium);
+  letter-spacing: 0.2em;
+  opacity: 0.72;
+  line-height: var(--eds-leading-normal);
+}
+
+/* ============================================================================
+   ROW
+   The system's only layout primitive. Label (with an optional hint) on the
+   left, control hard right, a hairline between rows, and NO hairline on the
+   last row — the next group header's own rule is the separator.
+   ========================================================================= */
+.eds-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: var(--eds-line-weight) solid var(--eds-line-hairline);
+}
+
+.eds-row--last { border-bottom: none; }
+
+.eds-row__text { min-width: 0; }
+
+.eds-row__control {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 8px;
+}
+
+/* ============================================================================
+   BUTTONS
+   Two families, and the distinction is a rule, not a taste call:
+
+     .eds-button--ghost   neutral outline. The DEFAULT. Most actions are this.
+     .eds-button--solid   accent fill + ink text. Reserved for the one commit
+                          action on a surface. Ink on 谷地黄 is 16.50:1, on
+                          武陵青 9.88:1 — the pairing is measured, not eyeballed.
+
+   A button that fills with the accent MUST set its own ink. The system learned
+   this the hard way: a token that made the fill accent-yellow left the host's
+   label colour at paper-white, 1.05:1, invisible.
+   ========================================================================= */
+.eds-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 30px;
+  padding: 4px 14px;
+  border: var(--eds-line-weight) solid var(--eds-line-strong);
+  border-radius: var(--eds-radius-0);
+  background: transparent;
+  color: var(--eds-text-primary);
+  font-family: var(--eds-font);
+  font-size: var(--eds-text-base);
+  font-weight: var(--eds-weight-medium);
+  line-height: 1.4;
+  white-space: nowrap;
+  cursor: pointer;
+  /* No colour transition: hover feedback must track the pointer immediately. */
+  transition: none;
+}
+
+.eds-button:hover:not(:disabled) {
+  border-color: var(--eds-line-contrast);
+  background: var(--eds-wash-hover);
+}
+
+.eds-button:disabled {
+  /* A disabled control must LOOK disabled, not merely ignore clicks. */
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.eds-button--solid {
+  border-color: var(--eds-accent);
+  background: var(--eds-accent);
+  /* Ink, always. Never inherit: the host's label token is paper-white in dark. */
+  color: var(--eds-text-on-accent);
+  font-weight: var(--eds-weight-semibold);
+}
+
+.eds-button--solid:hover:not(:disabled) {
+  border-color: var(--eds-accent-hover);
+  background: var(--eds-accent-hover);
+  color: var(--eds-text-on-accent);
+}
+
+.eds-button--muted {
+  border-color: transparent;
+  background: var(--eds-surface-sunken);
+  color: var(--eds-text-primary);
+}
+
+.eds-button--danger {
+  border-color: transparent;
+  background: var(--eds-status-error);
+  color: var(--eds-text-inverse);
+}
+
+.eds-button--square-pill {
+  border-radius: var(--eds-radius-pill);
+  corner-shape: var(--eds-corner-shape);
+}
+
+.eds-button--icon {
+  width: 30px;
+  min-width: 30px;
+  padding: 0;
+  border-radius: var(--eds-radius-pill);
+  corner-shape: var(--eds-corner-shape);
+}
+
+/* ---- the two capsules from the approval band ------------------------------
+   A dialog in this system commits with a PAIR: cancel dark, confirm signal
+   yellow. Both are full stadiums in BOTH corner modes, ~190px wide, with a
+   light keyline inset 3px and the trailing glyph sitting in its own disc.
+   That keyline + disc is the whole Endfield dialog signature. */
+.eds-capsule {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  min-width: 190px;
+  padding: 9px 26px;
+  border: 0;
+  border-radius: var(--eds-radius-pill);
+  corner-shape: var(--eds-corner-shape);
+  font-family: var(--eds-font);
+  font-size: var(--eds-text-lg);
+  font-weight: var(--eds-weight-bold);
+  letter-spacing: var(--eds-tracking-wide);
+  cursor: pointer;
+  box-shadow: var(--eds-shadow-capsule);
+}
+
+.eds-capsule::before {
+  content: '';
+  position: absolute;
+  inset: 3px;
+  border: var(--eds-line-weight) solid rgba(245, 245, 240, 0.32);
+  border-radius: var(--eds-radius-pill);
+  corner-shape: var(--eds-corner-shape);
+  pointer-events: none;
+}
+
+.eds-capsule--dark {
+  background: #33312e;
+  color: var(--eds-text-inverse);
+}
+
+.eds-capsule--dark:hover:not(:disabled) { background: #46433f; }
+
+.eds-capsule--accent {
+  background: var(--eds-accent);
+  color: var(--eds-text-on-accent);
+}
+
+.eds-capsule--accent:hover:not(:disabled) { background: var(--eds-accent-hover); }
+
+.eds-capsule--accent::before { border-color: rgba(255, 255, 255, 0.7); }
+
+.eds-capsule:disabled { opacity: 0.45; cursor: not-allowed; }
+
+/* One system, one convention: ✕ cancels, ◎ confirms. */
+.eds-capsule--cancel::after,
+.eds-capsule--confirm::after {
+  content: '';
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  margin-left: 10px;
+  border-radius: var(--eds-radius-pill);
+  corner-shape: var(--eds-corner-shape);
+  font-size: var(--eds-text-sm);
+  line-height: 1;
+}
+
+.eds-capsule--cancel::after { content: '✕'; background: #211f1d; color: var(--eds-text-inverse); }
+.eds-capsule--confirm::after { content: '◎'; background: #1c1b19; color: var(--eds-accent); }
+
+/* ============================================================================
+   CHIP / BADGE
+   Small status tokens. Two states that matter: neutral (hairline outline) and
+   active (accent wash + ink). An ACTIVE chip never needs a second colour.
+   ========================================================================= */
+.eds-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 8px;
+  border: var(--eds-line-weight) solid var(--eds-line-hairline);
+  border-radius: var(--eds-radius-0);
+  background: transparent;
+  color: var(--eds-text-secondary);
+  font-size: var(--eds-text-sm);
+  font-weight: var(--eds-weight-semibold);
+  letter-spacing: var(--eds-tracking-label);
+  line-height: 1.6;
+  white-space: nowrap;
+}
+
+.eds-chip--active {
+  border-color: transparent;
+  background: var(--eds-wash-selected);
+  color: var(--eds-text-primary);
+}
+
+.eds-chip--solid {
+  border-color: transparent;
+  background: var(--eds-accent);
+  color: var(--eds-text-on-accent);
+}
+
+/* Inverted chip: for a chip that sits ON an accent-filled row and would
+   otherwise dissolve into it. */
+.eds-chip--inverse {
+  border-color: transparent;
+  background: var(--eds-text-primary);
+  color: var(--eds-accent);
+}
+
+/* ============================================================================
+   SELECT
+   Native, squared, hairline. No custom dropdown: a native select inherits the
+   OS menu, which is the one surface the system cannot theme and should not
+   pretend to.
+   ========================================================================= */
+.eds-select {
+  padding: 6px 10px;
+  border: var(--eds-line-weight) solid var(--eds-line-strong);
+  border-radius: var(--eds-radius-0);
+  background: var(--eds-surface-raised);
+  color: var(--eds-text-primary);
+  font-family: var(--eds-font);
+  font-size: var(--eds-text-base);
+  cursor: pointer;
+}
+
+.eds-select:focus-visible { outline-offset: 1px; }
+
+/* ============================================================================
+   STADIUM — drawn, not rounded
+   ----------------------------------------------------------------------------
+   WHY THIS IS NOT `border-radius: 999px`. On a host that roots
+   `corner-shape: superellipse(1.5)`, a 999px radius on a 32px pill renders as
+   a squircle with ~14px caps — measured, and reported twice by users. A radius
+   is only a circle when the SHAPE is round, and the host can change the shape
+   out from under you.
+
+   So the silhouette is PAINTED: two radial-gradient discs (one per end, radius
+   = half the height) plus a linear-gradient band between their centres. There
+   is no radius for any corner-shape to clip, so the outline is the gradient
+   and it is correct wherever gradients paint.
+
+   The element must carry `border-radius: 0` and repeat the fill colour, not
+   `transparent`, at the gradient's outer stop — plain `transparent` fringes
+   grey through the half-pixel feather.
+
+   --eds-stadium-cap must equal height/2. Set both together, or the ends will
+   not meet the band.
+   ========================================================================= */
+.eds-stadium {
+  --eds-stadium-cap: 16px;
+  --eds-stadium-fill: #312f30;
+  position: relative;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 1px 0 14px;
+  border-radius: var(--eds-radius-0);
+  corner-shape: var(--eds-corner-shape);
+  background:
+    radial-gradient(circle at var(--eds-stadium-cap) 50%,
+      var(--eds-stadium-fill) calc(var(--eds-stadium-cap) - 0.5px),
+      rgba(49, 47, 48, 0) var(--eds-stadium-cap)),
+    radial-gradient(circle at calc(100% - var(--eds-stadium-cap)) 50%,
+      var(--eds-stadium-fill) calc(var(--eds-stadium-cap) - 0.5px),
+      rgba(49, 47, 48, 0) var(--eds-stadium-cap)),
+    linear-gradient(var(--eds-stadium-fill), var(--eds-stadium-fill))
+      var(--eds-stadium-cap) 0 / calc(100% - 2 * var(--eds-stadium-cap)) 100% no-repeat;
+  color: var(--eds-text-inverse);
+  font-family: var(--eds-font);
+  font-size: var(--eds-text-md);
+  font-weight: var(--eds-weight-semibold);
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.eds-stadium--hero {
+  --eds-stadium-cap: 36px;
+  height: 72px;
+  padding: 0 22px;
+}
+
+/* ---------------------------------------------------------------------------
+   MORPH: --eds-stadium-cap is a REGISTERED <length>, so it interpolates on the
+   same 420ms curve as the box height. cap(t) = height(t)/2 at every instant,
+   which is what makes a collapse read as ONE object changing shape instead of
+   two layouts swapping.
+
+   A transition only runs if the property is still declared AFTER the change:
+   declare the transition on the rule that SURVIVES the state, and keep only
+   the changed value under the state selector. Doing both inside the state
+   selector means removing the state deletes the transition mid-flight and the
+   end pose snaps.
+   ------------------------------------------------------------------------ */
+@property --eds-stadium-cap {
+  syntax: '<length>';
+  inherits: false;
+  initial-value: 16px;
+}
+
+.eds-stadium--morph {
+  transition:
+    height var(--eds-dur-morph) var(--eds-ease-morph),
+    min-width var(--eds-dur-morph) var(--eds-ease-morph),
+    padding var(--eds-dur-morph) var(--eds-ease-morph),
+    --eds-stadium-cap var(--eds-dur-morph) var(--eds-ease-morph),
+    opacity var(--eds-dur-base) var(--eds-ease-linear);
+}
+
+/* ============================================================================
+   METER — the boot rail
+   A 10px vertical rail. The track is the accent at 10% (a wash, not a tint),
+   the fill is the accent, and the percentage ride-along is tabular so the
+   digits do not jitter while they ramp. The 39px numeral is the one place the
+   system shouts at rest.
+   ========================================================================= */
+.eds-meter {
+  --eds-meter-width: 10px;
+  position: relative;
+  width: var(--eds-meter-width);
+  background: rgba(var(--eds-accent-rgb), 0.10);
+}
+
+.eds-meter__fill {
+  position: absolute;
+  inset: 0 0 auto 0;
+  width: 100%;
+  height: 0%;
+  background: var(--eds-accent);
+}
+
+.eds-meter__readout {
+  display: block;
+  margin-top: 7px;
+  color: var(--eds-accent);
+  font-size: var(--eds-text-4xl);
+  font-weight: var(--eds-weight-bold);
+  line-height: var(--eds-leading-none);
+  letter-spacing: var(--eds-tracking-tight);
+  font-variant-numeric: tabular-nums;
+}
+
+.eds-meter__caption {
+  display: block;
+  margin-top: 12px;
+  color: var(--eds-text-dimmed);
+  font-size: var(--eds-text-sm);
+  letter-spacing: var(--eds-tracking-label);
+}
+
+/* ============================================================================
+   DECOR
+   The system's decoration bar is NOT the foreground bar. Decor must be
+   visible but never compete: floor ~1.06:1, ceiling ~1.6:1. It carries its own
+   alpha so a scheme flip re-resolves it in CSS with no repaint.
+
+   The wordmark is drawn from `content`, not a text node — page translators
+   walk text nodes, and a brand name in a text node gets rewritten.
+   ========================================================================= */
+.eds-watermark {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--eds-font);
+  font-size: 9.5vw;
+  font-weight: var(--eds-weight-black);
+  letter-spacing: var(--eds-tracking-wider);
+  text-transform: uppercase;
+  color: var(--eds-text-primary);
+  opacity: var(--eds-decor-wordmark-alpha);
+  pointer-events: none;
+  user-select: none;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.eds-watermark::before {
+  content: attr(data-mark);
+}
+
+/* Behind text. Requires the PARENT to provide isolation, or a negative z-index
+   escapes to the nearest ancestor stacking context and paints under the
+   parent's own opaque background — i.e. never shows. */
+.eds-behind {
+  position: relative;
+  isolation: isolate;
+}
+
+.eds-behind > .eds-watermark {
+  z-index: var(--eds-z-behind);
+}
+
+/* A faint repeating grid is the paper's texture; at 1.4% white it is felt,
+   not seen. */
+.eds-grid-tex {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.55;
+  background-image:
+    repeating-linear-gradient(0deg, var(--eds-grid-line) 0 1px, transparent 1px 4px),
+    repeating-linear-gradient(90deg, var(--eds-grid-rule) 0 1px, transparent 1px var(--eds-grid-pitch));
+}
+
+/* ============================================================================
+   SCRIM PLATE
+   A full-screen announcement. Two rules make it a caption rather than a modal:
+   `pointer-events: none` on BOTH layers, and click-to-dismiss bound on the
+   document in the CAPTURE phase — so a press both clears the word and reaches
+   whatever the user aimed at. Giving the layer `pointer-events: auto` to catch
+   the click turns it into a full-screen click-eater.
+   ========================================================================= */
+.eds-scrim-plate {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--eds-scrim-celebration);
+  pointer-events: none;
+}
+
+.eds-scrim-plate__word {
+  color: #fff;
+  font-family: var(--eds-font-display);
+  font-size: var(--eds-text-display);
+  font-weight: var(--eds-weight-black);
+  line-height: var(--eds-leading-none);
+  letter-spacing: var(--eds-tracking-widest);
+  text-indent: var(--eds-tracking-widest);
+  white-space: nowrap;
+  /* The ink halo is what makes white type survive on cream paper. Without it a
+     pure-white glyph has almost no edge. The scrim alpha is measured: 0.55 is
+     the first step where white clears AA over BOTH light surfaces. */
+  text-shadow:
+    0 0 2px rgba(16, 17, 16, 0.55),
+    0 4px 18px rgba(16, 17, 16, 0.65),
+    0 0 46px rgba(var(--eds-accent-rgb), 0.45);
+}
+
+/* The slam: overshoot in, hold, fade. One timeline covers entry, hold and exit,
+   so nothing has to be re-timed in JS. */
+@keyframes eds-slam {
+  0%   { opacity: 0; transform: scale(2.4); }
+  7%   { opacity: 1; transform: scale(0.94); }
+  12%  { transform: scale(1); }
+  80%  { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(1.06); }
+}
+
+.eds-scrim-plate--animated .eds-scrim-plate__word {
+  animation: eds-slam var(--eds-dur-hold) var(--eds-ease-slam) 1 both;
+}
+
+/* The STATIC path. `opacity: 1` is load-bearing: the animated rule starts at
+   opacity 0 and relies on the keyframes to bring the word in, so cancelling
+   only `animation` would leave a permanently invisible plate. */
+.eds-scrim-plate--still .eds-scrim-plate__word {
+  animation: none;
+  opacity: 1;
+  transform: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .eds-scrim-plate__word {
+    animation: none !important;
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* ============================================================================
+   GLASS — bounded frost
+   OFF by default, and never full-window. Three tiers; each raises opacity AND
+   blur, so stronger frost competes less with foreground text, not more.
+
+   THE EXCLUSION IS THE DESIGN. `backdrop-filter` makes an element the
+   containing block for `position: fixed` descendants. A card that hosts a
+   fixed-position tooltip resolved its tooltip coordinates against the shrunk
+   card box, clipped it past the card's edge, and sent its ResizeObserver into
+   a re-measure loop. So: cards with fixed children get the FILL, never the
+   filter. Full-screen panels, dialogs, code blocks and menus get neither.
+   ========================================================================= */
+.eds-glass {
+  background-color: rgb(var(--eds-glass-fill) / var(--eds-glass-alpha));
+  background-image:
+    linear-gradient(145deg, var(--eds-glass-sheen), transparent 58%),
+    radial-gradient(ellipse at 0% 0%,
+      color-mix(in srgb, var(--eds-accent) 8%, transparent), transparent 75%);
+  box-shadow: inset -1px 0 0 var(--eds-glass-edge);
+}
+
+.eds-glass--frosted {
+  -webkit-backdrop-filter: blur(var(--eds-glass-blur)) saturate(1.05);
+  backdrop-filter: blur(var(--eds-glass-blur)) saturate(1.05);
+}
+
+.eds-glass--subtle { --eds-glass-alpha: 0.68; --eds-glass-blur: 8px; }
+.eds-glass--strong { --eds-glass-alpha: 0.90; --eds-glass-blur: 22px; }
+
+/* Degrade to an opaque fill rather than to a milky, unreadable card. */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .eds-glass--frosted { background-color: rgb(var(--eds-glass-fill) / 0.96); }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .eds-glass--frosted {
+    background-color: rgb(var(--eds-glass-fill));
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
+
+/* ============================================================================
+   DIALOG BAND
+   ----------------------------------------------------------------------------
+   The system's confirm shape is not a card: it is a PAPER BAND running edge to
+   edge horizontally, one content-high strip centred in the viewport, with the
+   dimming only above and below it. The action capsules straddle the band's
+   bottom edge — upper half on paper, lower half over the dim.
+
+   Implemented as a gradient that fills all but the bottom 18px (half of a
+   36px capsule) rather than a shorter box, so the capsules hang off the paint
+   without hanging off the layout.
+
+   The band stays BRIGHT in dark mode on purpose: the app's paper token is
+   #101110 there, which would turn the white band dark and kill the shape. So
+   the band is the literal Endfield white and the SCOPE re-declares the text
+   roles as ink — every var() the copy uses flips at once, while elements with
+   their own colour (a danger-red warning) keep it.
+
+   `filter: drop-shadow` instead of `box-shadow`: a box shadow wraps the whole
+   box and would float under the hanging capsules; drop-shadow follows the
+   PAINTED silhouette, which is the shadow the reference draws.
+   ========================================================================= */
+.eds-band-dialog {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 16px;
+  padding: 28px 0 0;
+  background: var(--eds-scrim-dialog);
+}
+
+.eds-band-dialog__band {
+  --eds-band-paper: #f5f5f0;
+  --eds-band-cap: 18px;
+
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0 24px 18px;
+  background: linear-gradient(var(--eds-band-paper), var(--eds-band-paper))
+    0 0 / 100% calc(100% - var(--eds-band-cap)) no-repeat;
+  filter: var(--eds-shadow-band);
+  font-family: var(--eds-font);
+
+  /* Re-scope the text roles for the paper band, so the dark scheme's
+     paper-on-ink labels do not vanish on white. */
+  --eds-text-primary: #101110;
+  --eds-text-secondary: #4a4c48;
+  --eds-text-tertiary: #6a6d68;
+  color: var(--eds-text-primary);
+}
+
+.eds-band-dialog__header {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  padding: 18px 56px 0;
+}
+
+.eds-band-dialog__title {
+  font-size: var(--eds-text-2xl);
+  font-weight: var(--eds-weight-bold);
+  letter-spacing: var(--eds-tracking-label);
+  text-align: center;
+}
+
+.eds-band-dialog__body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 0 0;
+  text-align: center;
+}
+
+.eds-band-dialog__actions {
+  display: flex;
+  justify-content: center;
+  gap: 28px;
+  /* Sits ON the band's bottom edge — see the block comment. */
+  margin-top: 4px;
+}
+
+/* ============================================================================
+   TABLE
+   Hairline rules, a sunken header, and a hover that MIXES the accent into the
+   surface instead of layering a wash. The mix result is one opaque colour, so
+   the text on it can actually be measured: ink on 15% accent over paper is
+   15.39:1 (yellow) / 14.12:1 (teal). Text selection keeps the FULL accent, so
+   hover and selection stay visually distinct.
+   ========================================================================= */
+.eds-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--eds-font);
+  font-size: var(--eds-text-md);
+}
+
+.eds-table th {
+  padding: 8px 12px;
+  background: var(--eds-surface-sunken);
+  border-bottom: var(--eds-line-weight) solid var(--eds-line-hairline);
+  color: var(--eds-text-secondary);
+  font-size: var(--eds-text-sm);
+  font-weight: var(--eds-weight-semibold);
+  letter-spacing: var(--eds-tracking-label);
+  text-align: left;
+}
+
+.eds-table td {
+  padding: 8px 12px;
+  border-bottom: var(--eds-line-weight) solid var(--eds-line-hairline);
+  color: var(--eds-text-primary);
+}
+
+.eds-table tbody tr:hover,
+.eds-table tbody tr:hover * {
+  color: var(--eds-text-primary);
+  background: var(--eds-wash-table);
+}
+
+/* ============================================================================
+   TOGGLE
+   A two-state chip pair. Deliberately NOT a switch: the system's toggle show
+   the current STATE in text (「已开启」), so the control never has to be decoded
+   from a thumb position.
+   ========================================================================= */
+.eds-toggle {
+  display: inline-flex;
+  border: var(--eds-line-weight) solid var(--eds-line-strong);
+  border-radius: var(--eds-radius-0);
+  overflow: hidden;
+}
+
+.eds-toggle__option {
+  padding: 4px 12px;
+  border: 0;
+  background: transparent;
+  color: var(--eds-text-secondary);
+  font-family: var(--eds-font);
+  font-size: var(--eds-text-sm);
+  font-weight: var(--eds-weight-semibold);
+  cursor: pointer;
+}
+
+.eds-toggle__option + .eds-toggle__option {
+  border-left: var(--eds-line-weight) solid var(--eds-line-strong);
+}
+
+.eds-toggle__option[aria-pressed='true'] {
+  background: var(--eds-accent);
+  color: var(--eds-text-on-accent);
+}
+
+/* ============================================================================
+   MOTION DISCIPLINE
+   Everything above is opt-in except this: a reader who asked for less motion
+   gets the END STATE, never a shortened animation.
+   ========================================================================= */
+@media (prefers-reduced-motion: reduce) {
+  .eds-scrim-plate,
+  .eds-scrim-plate__word,
+  .eds-stadium--morph {
+    animation: none !important;
+    transition: none !important;
+  }
+}

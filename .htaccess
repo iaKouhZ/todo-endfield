@@ -1,0 +1,67 @@
+# =============================================================================
+#  待办清单 · 伪静态 + 访问保护
+# -----------------------------------------------------------------------------
+#  需要 mod_rewrite，且站点目录允许 AllowOverride FileInfo（宝塔 / cPanel 一般
+#  默认给）。规则与 lib/core.php 里的地址映射一一对应：
+#
+#     /                                 → index.php
+#     /tracked/ /planned/ /done/ /all/ → index.php?tab=<tab>
+#     /tracked/task/12/                 → index.php?tab=tracked&task=12
+#     /tracked/task/12/2026-10-24/      → index.php?tab=tracked&task=12&date=2026-10-24
+#     /admin/                           → admin.php?view=tasks
+#     /admin/tasks/                     → admin.php?view=tasks
+#     /admin/categories/                → admin.php?view=categories
+#     /admin/system/                    → admin.php?view=system
+#     /admin/tasks/12/                  → admin.php?view=tasks&edit=12
+#     /login/  /logout/  /action/       → login.php / logout.php / action.php
+#
+#  筛选条件（分类 / 搜索 / 状态 / 分页）留在查询串里，不进路径。
+#  nginx 用 deploy/nginx.conf，本地开发用 router.php。
+# =============================================================================
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # ---------------------------------------------------------------- 屏蔽
+    # data/ 是运行时数据：SQLite 库（含 -wal / -shm）。
+    # 落在这里的路径直接 403，不给 PHP 解释器任何机会。
+    RewriteRule ^data(/|$) - [F,L]
+
+    # 配置与源码：config.php 里有口令和 cookie 密钥，lib/ 是内部实现。
+    RewriteRule ^config\.php$ - [F,L]
+    RewriteRule ^lib(/|$) - [F,L]
+
+    # 数据库、日志、备份
+    RewriteRule \.(sqlite|sqlite-wal|sqlite-shm|db|log|ini|bak|sql)$ - [F,L]
+
+    # JSON 文件不对外
+    RewriteRule \.json$ - [F,L]
+
+    # 隐藏文件：.git / .env / .htaccess
+    RewriteRule (^|/)\. - [F,L]
+
+    # ---------------------------------------------------------------- 伪静态
+    RewriteRule ^$ index.php [L,QSA]
+
+    RewriteRule ^(tracked|planned|done|all)/task/(\d+)/(\d{4}-\d{2}-\d{2})/?$ index.php?tab=$1&task=$2&date=$3 [L,QSA]
+    RewriteRule ^(tracked|planned|done|all)/task/(\d+)/?$ index.php?tab=$1&task=$2 [L,QSA]
+    RewriteRule ^(tracked|planned|done|all)/?$ index.php?tab=$1 [L,QSA]
+
+    RewriteRule ^admin/tasks/(\d+)/?$ admin.php?view=tasks&edit=$1 [L,QSA]
+    RewriteRule ^admin/(tasks|categories|system)/?$ admin.php?view=$1 [L,QSA]
+    RewriteRule ^admin/?$ admin.php?view=tasks [L,QSA]
+
+    RewriteRule ^login/?$ login.php [L,QSA]
+    RewriteRule ^logout/?$ logout.php [L,QSA]
+    RewriteRule ^action/?$ action.php [L,QSA]
+
+    # ---------------------------------------------------------------- 兜底
+    # 其余地址（不存在的文件、目录）一律 403：顺便挡住目录列表。
+    # 真实文件（assets/…）不在此列，由上面的规则放行。
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteRule . - [F,L]
+</IfModule>
+
+# 目录索引要关的话，需要站点允许 AllowOverride Options：
+#     Options -Indexes
+# 不允许就把这行删掉 —— 上面那条兜底规则已经挡住目录列表了。

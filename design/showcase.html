@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-eds-scheme="light" data-eds-palette="signal">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>EDS · Editorial Design System</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="components.css">
+<style>
+  /* Showcase chrome only. Not part of the system. */
+  .page { max-width: 1120px; margin: 0 auto; padding: 40px 28px 120px; }
+  .masthead { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between;
+    gap: 20px; padding-bottom: 18px; border-bottom: 2px solid var(--eds-text-primary); }
+  .masthead h1 { margin: 0; font-size: 34px; font-weight: 900; letter-spacing: 0.04em; line-height: 1; }
+  .masthead p { margin: 6px 0 0; font-size: 12px; letter-spacing: 0.14em;
+    text-transform: uppercase; color: var(--eds-text-tertiary); }
+  .switchers { display: flex; gap: 8px; }
+  .section { margin-top: 54px; }
+  .section > .eds-group-head { margin-bottom: 18px; }
+  .section-note { max-width: 64ch; margin: 0 0 20px; font-size: 13px; line-height: 1.7;
+    color: var(--eds-text-secondary); }
+  .grid { display: grid; gap: 12px; }
+  .grid--colors { grid-template-columns: repeat(auto-fill, minmax(158px, 1fr)); }
+  .grid--two { grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+  .swatch { border: 1px solid var(--eds-line-hairline); background: var(--eds-surface-raised); }
+  .swatch__chip { height: 56px; border-bottom: 1px solid var(--eds-line-hairline); }
+  .swatch__meta { padding: 8px 10px 10px; }
+  .swatch__name { display: block; font-size: 11px; font-weight: 600; letter-spacing: 0.04em; }
+  .swatch__value { display: block; margin-top: 3px; font-size: 10px; color: var(--eds-text-tertiary);
+    font-variant-numeric: tabular-nums; letter-spacing: 0.02em; }
+  .specimen { padding: 14px 0; border-bottom: 1px solid var(--eds-line-hairline); }
+  .specimen:last-child { border-bottom: 0; }
+  .specimen__row { display: flex; flex-wrap: wrap; align-items: baseline; gap: 16px; }
+  .specimen__tag { flex: 0 0 132px; font-size: 10px; letter-spacing: 0.12em;
+    text-transform: uppercase; color: var(--eds-text-tertiary); }
+  .stack { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+  .stage { position: relative; padding: 18px; border: 1px solid var(--eds-line-hairline);
+    background: var(--eds-surface-raised); overflow: hidden; }
+  .stage--dark { background: var(--eds-surface-base); }
+  .stage--hero { min-height: 260px; display: flex; flex-direction: column;
+    justify-content: flex-end; }
+  .demo-card { padding: 14px 16px; border: 1px solid var(--eds-line-hairline);
+    background: var(--eds-surface-base); }
+  .audit { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .audit th, .audit td { padding: 7px 10px; text-align: left; border-bottom: 1px solid var(--eds-line-hairline); }
+  .audit th { font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--eds-text-secondary); background: var(--eds-surface-sunken); }
+  .audit td.num { font-variant-numeric: tabular-nums; text-align: right; }
+  .audit .pass { color: var(--eds-status-success); font-weight: 700; }
+  .audit .fail { color: var(--eds-status-error); font-weight: 700; }
+  .audit .decor { color: var(--eds-text-tertiary); }
+  .audit-summary { margin-top: 12px; font-size: 12px; color: var(--eds-text-secondary); }
+  .audit-summary strong { color: var(--eds-text-primary); }
+  .token-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .token-table td { padding: 6px 10px; border-bottom: 1px solid var(--eds-line-hairline); vertical-align: top; }
+  .token-table td:first-child { width: 42%; font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 11px; color: var(--eds-text-primary); }
+  .token-table td:last-child { color: var(--eds-text-secondary); }
+  .aside { margin-top: 10px; font-size: 12px; line-height: 1.7; color: var(--eds-text-tertiary); }
+  .aside code { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 11px;
+    color: var(--eds-text-secondary); }
+  .inline-form { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+  .inline-form input[type='text'] { padding: 6px 10px; border: 1px solid var(--eds-line-strong);
+    background: var(--eds-surface-raised); color: var(--eds-text-primary); font: inherit; font-size: 12px; }
+  .meter-demo { display: flex; align-items: flex-start; gap: 18px; height: 180px; }
+  .meter-demo .eds-meter { height: 100%; }
+  .meter-demo .eds-meter__fill { height: 64%; }
+  .plate-host { position: relative; height: 0; }
+  .plate {
+    position: absolute; inset: 0; z-index: var(--eds-z-celebration);
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--eds-font-display); font-weight: 900;
+    font-size: 64px; letter-spacing: 0.12em; text-indent: 0.12em; color: #fff;
+    background: var(--eds-scrim-celebration);
+  }
+  .kb { display: inline-block; padding: 1px 5px; border: 1px solid var(--eds-line-strong);
+    font-size: 10px; font-family: ui-monospace, monospace; }
+</style>
+</head>
+<body class="eds-root eds-square">
+<div class="page">
+
+  <header class="masthead">
+    <div>
+      <h1>EDITORIAL DESIGN SYSTEM</h1>
+      <p>Cream paper · ink text · one signal colour · zero radius</p>
+    </div>
+    <div class="switchers">
+      <div class="eds-toggle" role="group" aria-label="配色">
+        <button class="eds-toggle__option" data-palette="signal" aria-pressed="true">谷地黄</button>
+        <button class="eds-toggle__option" data-palette="teal" aria-pressed="false">武陵青</button>
+      </div>
+      <div class="eds-toggle" role="group" aria-label="明暗">
+        <button class="eds-toggle__option" data-scheme="light" aria-pressed="true">亮色</button>
+        <button class="eds-toggle__option" data-scheme="dark" aria-pressed="false">暗色</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- ================================================================ 01 -->
+  <section class="section">
+    <div class="eds-group-head">
+      <span class="eds-group-head__mark" aria-hidden="true"></span>
+      <span class="eds-group-head__name">01 基础色</span>
+      <span class="eds-group-head__latin">FOUNDATIONS</span>
+    </div>
+    <p class="section-note">
+      纸与墨是主体，强调色是信号。亮色不用纯白、暗色不用纯黑：<code>#e8e8e2</code> 带一点暖灰，
+      是「纸」而不是「屏幕」；<code>#101110</code> 留一点绿倾向，避免深灰界面常见的死黑。
+      每个文字色都能在纸底与面板两种表面上通过 AA。
+    </p>
+
+    <div class="grid grid--colors" id="swatches"></div>
+
+    <div class="stage" style="margin-top:16px">
+      <table class="token-table" id="token-table">
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ================================================================ 02 -->
+  <section class="section">
+    <div class="eds-group-head">
+      <span class="eds-group-head__mark" aria-hidden="true"></span>
+      <span class="eds-group-head__name">02 文字</span>
+      <span class="eds-group-head__latin">TYPOGRAPHY</span>
+    </div>
+    <p class="section-note">
+      数字等宽：开启 <code>tnum</code>，让表格、耗时、百分比在跳动时不产生横向抖动——但只开在
+      拥有这些数字的元素上，绝不做成 body 级特性。技术标签一律拉开字距、全大写。
+    </p>
+
+    <div class="stack" style="align-items:flex-start; gap:32px; flex-wrap:wrap">
+      <div class="specimen" style="flex:1 1 420px">
+        <div class="specimen__row"><span class="specimen__tag">display / slam</span>
+          <span class="eds-display" style="font-size:56px">任务完成</span></div>
+        <div class="specimen__row"><span class="specimen__tag">kicker</span>
+          <span class="eds-kicker">Deepseek Harness · Edge Intelligence</span></div>
+        <div class="specimen__row"><span class="specimen__tag">label</span>
+          <span class="eds-label">等高线背景<span class="eds-hint">主题自有表面上才会继承主题字体。</span></span></div>
+        <div class="specimen__row"><span class="specimen__tag">figure / xl</span>
+          <span class="eds-figure eds-figure--xl">39%</span></div>
+        <div class="specimen__row"><span class="specimen__tag">figure / lg</span>
+          <span class="eds-figure eds-figure--lg">¥ 128.4500</span>
+          <span class="eds-figure eds-figure--sm" style="color:var(--eds-text-tertiary)">低谷剩余 42:08:13</span></div>
+        <div class="specimen__row"><span class="specimen__tag">accent ink</span>
+          <span class="eds-accent-ink eds-label">强调色作为文字时必须下沉</span></div>
+      </div>
+
+      <div class="stage stage--dark eds-behind" style="flex:1 1 300px; min-height:300px; background:var(--eds-surface-base)">
+        <div class="eds-watermark" data-mark="ENDFIELD" aria-hidden="true"></div>
+        <div class="demo-card" style="position:relative">水印永远在正文之后。装饰性表面的对比度描述的是「有多抢眼」，不是可读性。</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================================================================ 03 -->
+  <section class="section">
+    <div class="eds-group-head">
+      <span class="eds-group-head__mark" aria-hidden="true"></span>
+      <span class="eds-group-head__name">03 组件</span>
+      <span class="eds-group-head__latin">COMPONENTS</span>
+    </div>
+    <p class="section-note">
+      全直角不是逐个组件改，而是<strong>先全部清零，再恢复该圆的</strong>：清零是无限集合，
+      恢复是有限清单。实心强调底上永远是墨色字——这一条曾被「把填充换成强调色、
+      把文字留给宿主」的写法打破，得到 1.05:1 的不可见组合。
+    </p>
+
+    <div class="grid grid--two">
+      <div class="stage">
+        <div class="stack">
+          <button class="eds-button">次要动作</button>
+          <button class="eds-button eds-button--solid">主要动作</button>
+          <button class="eds-button eds-button--muted">弱化</button>
+          <button class="eds-button eds-button--danger">移除</button>
+          <button class="eds-button eds-button--icon" aria-label="更多">···</button>
+          <button class="eds-button" disabled>不可用</button>
+        </div>
+        <div class="stack" style="margin-top:14px">
+          <span class="eds-chip">默认</span>
+          <span class="eds-chip eds-chip--active">已选</span>
+          <span class="eds-chip eds-chip--solid">信号</span>
+          <span class="eds-chip eds-chip--inverse">反白</span>
+        </div>
+        <div class="inline-form" style="margin-top:14px">
+          <select class="eds-select" aria-label="渲染器">
+            <option>Canvas2D</option>
+            <option>Worker + WebGL2</option>
+          </select>
+          <input type="text" value="可输入的奶油纸面" aria-label="示例输入">
+          <span class="eds-dot" aria-hidden="true"></span>
+        </div>
+      </div>
+
+      <div class="stage">
+        <div class="eds-group-head" style="margin-bottom:4px">
+          <span class="eds-group-head__mark" aria-hidden="true"></span>
+          <span class="eds-group-head__name">01 主题</span>
+          <span class="eds-group-head__latin">THEME</span>
+        </div>
+        <div class="eds-row">
+          <span class="eds-row__text eds-label">主题：已开启</span>
+          <span class="eds-row__control"><button class="eds-button eds-button--solid">关闭</button></span>
+        </div>
+        <div class="eds-row">
+          <span class="eds-row__text eds-label">等高线背景<span class="eds-hint">跟随配色切换。</span></span>
+          <span class="eds-row__control">
+            <span class="eds-dot" aria-hidden="true"></span>
+            <button class="eds-button">开启</button>
+          </span>
+        </div>
+        <div class="eds-row eds-row--last">
+          <span class="eds-row__text eds-label">磨砂玻璃<span class="eds-hint">默认关闭；卡片只上色不加滤镜。</span></span>
+          <span class="eds-row__control">
+            <select class="eds-select" aria-label="磨砂档位">
+              <option>关闭</option><option>轻</option><option>标准</option><option>强</option>
+            </select>
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <div class="stage" style="margin-top:16px">
+      <table class="eds-table">
+        <thead><tr><th>令牌</th><th>作用</th><th style="text-align:right">通道位移</th><th style="text-align:right">文字压在其上</th></tr></thead>
+        <tbody id="wash-body"></tbody>
+      </table>
+      <p class="aside">把鼠标移到表格行上：悬停使用<strong>混色</strong>而不是半透明叠层，所以结果是一个实色，
+        文字压在它上面的对比度可以被真正量出来。文本选中保留整块强调色，两者因此始终可区分。</p>
+    </div>
+  </section>
+
+  <!-- ================================================================ 04 -->
+  <section class="section">
+    <div class="eds-group-head">
+      <span class="eds-group-head__mark" aria-hidden="true"></span>
+      <span class="eds-group-head__name">04 签名件</span>
+      <span class="eds-group-head__latin">SIGNATURES</span>
+    </div>
+    <p class="section-note">
+      这几件是这套语言真正的识别点，也是唯一不能靠「换个颜色」复制出来的部分：画出来的
+      胶囊轮廓、走完就消失的启动轨道、通栏纸带对话框、有边界的磨砂。
+    </p>
+
+    <div class="grid grid--two">
+      <!-- stadium -->
+      <div class="stage stage--dark" style="display:flex; flex-direction:column; gap:16px">
+        <div class="eds-kicker" style="color:var(--eds-text-tertiary)">stadium · drawn, not rounded</div>
+        <div class="eds-stadium">
+          <span style="display:inline-flex;align-items:center;gap:6px">
+            <span class="eds-dot" aria-hidden="true"></span>
+            <span class="eds-figure eds-figure--lg">¥ 128.45</span>
+          </span>
+          <span style="margin-left:auto;font-size:9px;color:#a2a1a2">低谷已过 33%</span>
+        </div>
+        <div class="eds-stadium eds-stadium--hero" style="align-self:flex-start">
+          <span class="eds-figure eds-figure--xl" style="font-size:22px;color:#f1f1ec">DEEPSEEK HARNESS</span>
+        </div>
+        <p class="aside" style="margin:0">
+          轮廓由两个径向圆盘 + 中间色带<strong>画</strong>出来，盒子自身圆角为 0。宿主把
+          <code>corner-shape</code> 根设在 superellipse 时，<code>999px</code> 只会画出方圆形；
+          渐变不受影响。开合时 <code>--eds-stadium-cap</code> 与高度走同一条 420ms 曲线。
+        </p>
+      </div>
+
+      <!-- meter -->
+      <div class="stage">
+        <div class="eds-kicker" style="color:var(--eds-text-tertiary)">meter · boot rail</div>
+        <div class="meter-demo">
+          <div class="eds-meter" style="align-self:stretch">
+            <div class="eds-meter__fill"></div>
+          </div>
+          <div>
+            <span class="eds-meter__readout">64%</span>
+            <span class="eds-meter__caption">TERRA RESEARCH COMMISSION / BOOT SEQUENCE</span>
+          </div>
+        </div>
+        <p class="aside">轨道是强调色的 10% 淡层，填充是纯强调色。读数用等宽数字，所以逐帧跳字时不会横向抖动。</p>
+      </div>
+
+      <!-- glass -->
+      <div class="stage" style="position:relative; overflow:hidden; min-height:170px;
+        background-image:linear-gradient(135deg, var(--eds-surface-sunken), var(--eds-surface-raised) 45%, var(--eds-surface-sunken))">
+        <div class="eds-kicker" style="color:var(--eds-text-tertiary); position:relative">glass · bounded</div>
+        <div class="eds-glass eds-glass--frosted" style="position:relative; margin-top:14px; padding:14px 16px; border:1px solid var(--eds-line-hairline)">
+          <strong class="eds-label">有边界的磨砂</strong>
+          <p class="aside" style="margin:4px 0 0">只作用于停靠面板。卡片只上色，不加 <code>backdrop-filter</code>；
+            满屏面板、对话框、代码块与菜单一律排除。</p>
+        </div>
+      </div>
+
+      <!-- motion -->
+      <div class="stage">
+        <div class="eds-kicker" style="color:var(--eds-text-tertiary)">motion · three curves</div>
+        <table class="token-table" style="margin-top:10px">
+          <tbody>
+            <tr><td>--eds-ease-morph</td><td>形状变化 · 420ms · <span class="eds-figure">cubic-bezier(.22,.72,.2,1)</span></td></tr>
+            <tr><td>--eds-ease-slam</td><td>入场砸落 · 3000ms · <span class="eds-figure">cubic-bezier(.16,1,.3,1)</span></td></tr>
+            <tr><td>--eds-ease-sweep</td><td>扫光 / 收尾 · 520ms + 620ms</td></tr>
+            <tr><td>--eds-dur-micro</td><td>悬停反馈 · 120ms（按钮本身不加过渡）</td></tr>
+          </tbody>
+        </table>
+        <div class="inline-form" style="margin-top:14px">
+          <button class="eds-button eds-button--solid" id="slam-demo">播放雷霆大字</button>
+          <span class="aside" style="margin:0">在 <span class="kb">prefers-reduced-motion</span> 下直接显示静态态，而不是缩短动画。</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="plate-host"><div id="plate-slot"></div></div>
+  </section>
+
+  <!-- ================================================================ 05 -->
+  <section class="section">
+    <div class="eds-group-head">
+      <span class="eds-group-head__mark" aria-hidden="true"></span>
+      <span class="eds-group-head__name">05 对话框</span>
+      <span class="eds-group-head__latin">BAND DIALOG</span>
+    </div>
+    <p class="section-note">
+      确认框不是一张卡片，而是<strong>一条通栏纸带</strong>：左右到屏幕边缘、上下留遮罩，
+      两个胶囊骑在纸带下缘。纸带在暗色下仍然是亮的——遮罩与纸带的关系是这个形状的全部意义。
+    </p>
+
+    <div class="stage" style="padding:0">
+      <div class="eds-band-dialog">
+        <div class="eds-band-dialog__band">
+          <div class="eds-band-dialog__header">
+            <span class="eds-band-dialog__title">确认启用完全权限？</span>
+          </div>
+          <div class="eds-band-dialog__body">
+            <p style="max-width:640px;margin:0;font-size:13px;line-height:1.7;color:var(--eds-text-secondary)">
+              该操作允许代理在本机执行命令、读写文件。你可以在设置里随时收回。
+            </p>
+          </div>
+          <div class="eds-band-dialog__actions">
+            <button class="eds-capsule eds-capsule--dark eds-capsule--cancel">拒绝</button>
+            <button class="eds-capsule eds-capsule--accent eds-capsule--confirm">允许一次</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="aside">禁用态不用整块 <code>opacity</code>：胶囊骑在两种底色上，半透明黄压在纸上发灰、
+      压在遮罩上发橄榄，会读成「灰色」。所以禁用是逐部件画出来的——把填充烤成它在纸上的合成色，
+      文字降透明度，描边与圆盘各自变淡。</p>
+  </section>
+
+  <!-- ================================================================ 06 -->
+  <section class="section">
+    <div class="eds-group-head">
+      <span class="eds-group-head__mark" aria-hidden="true"></span>
+      <span class="eds-group-head__name">06 实测</span>
+      <span class="eds-group-head__latin">MEASURED, NOT PICKED</span>
+    </div>
+    <p class="section-note">
+      下面的表由本页<strong>实时计算</strong>：脚本读取当前生效的 CSS 变量，合成半透明叠层，
+      再按 WCAG 2.x 算比值。切换配色或明暗，数字与结论都会跟着变——它证明的是此刻屏幕上
+      这套值，而不是某个写死的承诺。
+    </p>
+    <div class="stage">
+      <table class="audit">
+        <thead><tr><th>角色</th><th>前景</th><th>表面</th><th style="text-align:right">比值</th><th style="text-align:right">门槛</th><th>结论</th></tr></thead>
+        <tbody id="audit-body"></tbody>
+      </table>
+      <p class="audit-summary" id="audit-summary"></p>
+    </div>
+    <p class="aside">
+      命令行版本：<code>node design/scripts/check-contrast.mjs</code>。它解析 <code>tokens.css</code>，
+      按两种明暗 × 两套配色重算同一张表，任何一项跌破门槛就以非零码退出。
+    </p>
+  </section>
+
+  <!-- ================================================================ 07 -->
+  <section class="section">
+    <div class="eds-group-head">
+      <span class="eds-group-head__mark" aria-hidden="true"></span>
+      <span class="eds-group-head__name">07 规则</span>
+      <span class="eds-group-head__latin">THE FIVE RULES</span>
+    </div>
+    <div class="stage">
+      <ol style="margin:0;padding-left:20px;font-size:13px;line-height:2;color:var(--eds-text-secondary)">
+        <li><strong>颜色是量出来的，不是挑出来的。</strong>每个色值都对它实际落在的表面算过对比度。</li>
+        <li><strong>同一个色在亮 / 暗下往往需要相反的处理。</strong>亮色下沉、暗色提亮，取决于该色相在那个亮度还剩多少余量。</li>
+        <li><strong>「装饰」和「前景」用两套标准。</strong>前景守 AA 4.5:1；装饰守 1.06 ～ 1.6:1 的可见但不抢眼区间。</li>
+        <li><strong>令牌值自身可以是 <code>var()</code> 引用。</strong>这是把「换配色」从一次重绘降级成一次属性切换的关键。</li>
+        <li><strong>底色归主题、文字归应用 = 裂缝。</strong>改一个背景令牌时，要一起检查谁在上面写字。</li>
+      </ol>
+    </div>
+  </section>
+
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  /* ------------------------------------------------------------------ utils */
+  var root = document.documentElement;
+
+  /** Resolve any CSS custom property to a concrete colour by probing an element:
+      the browser resolves var() and color-mix() at use time. */
+  function resolveVar(name) {
+    var probe = document.createElement('div');
+    probe.style.color = 'var(' + name + ')';
+    probe.style.position = 'absolute';
+    probe.style.opacity = '0';
+    probe.style.pointerEvents = 'none';
+    document.body.appendChild(probe);
+    var value = getComputedStyle(probe).color;
+    document.body.removeChild(probe);
+    return parseColor(value);
+  }
+
+  function parseColor(value) {
+    var m = value.match(/rgba?\(([^)]+)\)/);
+    if (!m) return null;
+    var parts = m[1].split(/[,\s/]+/).filter(Boolean).map(Number);
+    return { r: parts[0], g: parts[1], b: parts[2], a: parts.length > 3 ? parts[3] : 1 };
+  }
+
+  function channel(c) {
+    var v = c / 255;
+    return v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+  }
+
+  function luminance(c) {
+    return 0.2126 * channel(c.r) + 0.7152 * channel(c.g) + 0.0722 * channel(c.b);
+  }
+
+  function ratio(fg, bg) {
+    var a = luminance(fg);
+    var b = luminance(bg);
+    return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+  }
+
+  /** Composite a possibly-translucent foreground over an opaque surface. */
+  function over(fg, bg) {
+    var a = fg.a === undefined ? 1 : fg.a;
+    return {
+      r: fg.r * a + bg.r * (1 - a),
+      g: fg.g * a + bg.g * (1 - a),
+      b: fg.b * a + bg.b * (1 - a),
+      a: 1
+    };
+  }
+
+  function hex(c) {
+    function h(v) { return Math.round(v).toString(16).padStart(2, '0'); }
+    return '#' + h(c.r) + h(c.g) + h(c.b);
+  }
+
+  /* ------------------------------------------------------- swatch renderer */
+  function renderSwatches() {
+    var host = document.getElementById('swatches');
+    if (!host) return;
+    var groups = [
+      { title: '纸 / 表面', tokens: ['--eds-surface-base', '--eds-surface-raised', '--eds-surface-sunken', '--eds-surface-overlay', '--eds-surface-code'] },
+      { title: '线', tokens: ['--eds-line-hairline', '--eds-line-strong', '--eds-line-contrast'] },
+      { title: '墨 / 文字', tokens: ['--eds-text-primary', '--eds-text-secondary', '--eds-text-tertiary', '--eds-text-dimmed'] },
+      { title: '强调', tokens: ['--eds-accent', '--eds-accent-hover', '--eds-accent-text', '--eds-accent-on-light'] },
+      { title: '状态', tokens: ['--eds-status-error', '--eds-status-success', '--eds-status-warn'] }
+    ];
+    var html = '';
+    groups.forEach(function (group) {
+      group.tokens.forEach(function (token) {
+        var c = resolveVar(token);
+        var base = resolveVar('--eds-surface-base');
+        var note = '';
+        if (c && c.a < 1 && base) {
+          note = ' α' + c.a.toFixed(2) + ' · 合成 ' + ratio(over(c, base), base).toFixed(2) + ':1';
+        }
+        html += '<div class="swatch">'
+          + '<div class="swatch__chip" style="background:var(' + token + ')"></div>'
+          + '<div class="swatch__meta"><span class="swatch__name">' + group.title + '</span>'
+          + '<span class="swatch__value">' + token + '</span>'
+          + '<span class="swatch__value">' + (c ? hex(c) + note : '—') + '</span>'
+          + '</div></div>';
+      });
+    });
+    host.innerHTML = html;
+  }
+
+  var TOKEN_DOCS = [
+    ['--eds-surface-base', '纸底：应用背景、侧栏'],
+    ['--eds-surface-raised', '面板 / 气泡 / 输入框'],
+    ['--eds-surface-sunken', '沉底块：表头、骨架、凹槽'],
+    ['--eds-surface-overlay', '浮层：菜单与弹层（刻意不透明）'],
+    ['--eds-line-hairline', '1px 细线——纸面上唯一的结构词汇'],
+    ['--eds-line-strong', '按钮描边与强调分隔'],
+    ['--eds-text-primary', '正文'],
+    ['--eds-text-secondary', '次要文字'],
+    ['--eds-text-tertiary', '辅助说明'],
+    ['--eds-text-dimmed', '非文字部件专用（不可用于正文）'],
+    ['--eds-accent', '强调色本体：实心底、图标、焦点环'],
+    ['--eds-accent-hover', '悬停 / 按下'],
+    ['--eds-accent-text', '强调色作为文字（已按明暗取档）'],
+    ['--eds-wash-hover', '悬停淡层'],
+    ['--eds-wash-selected', '选中淡层'],
+    ['--eds-wash-table', '表格悬停：混色，不叠层'],
+    ['--eds-decor-wordmark-alpha', '水印强度（随明暗变化）'],
+    ['--eds-decor-stroke', '等高线描边（canvas，8 位 hex）'],
+    ['--eds-radius-0', '直角'],
+    ['--eds-radius-pill', '天生是圆的形状专用'],
+    ['--eds-ease-morph', '形状变化曲线'],
+    ['--eds-dur-morph', '形状变化时长']
+  ];
+
+  function renderTokenTable() {
+    var body = document.querySelector('#token-table tbody');
+    if (!body) return;
+    var html = '';
+    TOKEN_DOCS.forEach(function (row) {
+      var c = resolveVar(row[0]);
+      var raw = c ? hex(c) : getComputedStyle(root).getPropertyValue(row[0]).trim();
+      html += '<tr><td>' + row[0] + '</td><td>' + row[1] + ' · <span class="eds-figure" style="font-size:11px">'
+        + (raw || '—') + '</span></td></tr>';
+    });
+    body.innerHTML = html;
+  }
+
+  /* ---------------------------------------------------------- contrast audit */
+  /* Kept in step with ROLES in scripts/check-contrast.mjs: every pairing shown
+     here is also gated there, and vice versa for the foreground roles. The
+     gate additionally runs pairwise invariants (palette parity, ink-never-
+     white-on-accent, the surface ladder) that need more than one ratio. */
+  var AUDIT = [
+    { role: '正文 / 纸底',           fg: '--eds-text-primary',   bg: '--eds-surface-base',   min: 4.5 },
+    { role: '正文 / 面板',           fg: '--eds-text-primary',   bg: '--eds-surface-raised', min: 4.5 },
+    { role: '次要文字 / 纸底',       fg: '--eds-text-secondary', bg: '--eds-surface-base',   min: 4.5 },
+    { role: '次要文字 / 面板',       fg: '--eds-text-secondary', bg: '--eds-surface-raised', min: 4.5 },
+    { role: '辅助文字 / 面板',       fg: '--eds-text-tertiary',  bg: '--eds-surface-raised', min: 4.5 },
+    { role: '小字 / 纸底',           fg: '--eds-text-caption',   bg: '--eds-surface-base',   min: 4.5 },
+    { role: '强调文字 / 纸底',       fg: '--eds-accent-text',    bg: '--eds-surface-base',   min: 4.5 },
+    { role: '强调文字 / 面板',       fg: '--eds-accent-text',    bg: '--eds-surface-raised', min: 4.5 },
+    { role: '强调亮带 / 纸底',       fg: '--eds-accent-text-soft', bg: '--eds-surface-base', min: 4.5 },
+    { role: '强调亮带 / 面板',       fg: '--eds-accent-text-soft', bg: '--eds-surface-raised', min: 4.5 },
+    { role: '墨色字 / 强调实心底',   fg: '--eds-text-on-accent', bg: '--eds-accent',         min: 4.5 },
+    { role: '墨色字 / 悬停强调底',   fg: '--eds-text-on-accent', bg: '--eds-accent-hover',   min: 4.5 },
+    { role: '墨色字 / 纸上强调底',   fg: '--eds-text-on-accent', bg: '--eds-accent-on-light', min: 4.5 },
+    { role: '错误文字 / 纸底',       fg: '--eds-status-error-text', bg: '--eds-surface-base', min: 4.5 },
+    { role: '错误文字 / 面板',       fg: '--eds-status-error-text', bg: '--eds-surface-raised', min: 4.5 },
+    { role: '装饰 · 水印',           fg: '--eds-text-primary',   bg: '--eds-surface-base',   min: 1.06, decor: 1.4, alpha: '--eds-decor-wordmark-alpha' },
+    { role: '装饰 · 等高线',         fg: '--eds-decor-stroke',   bg: '--eds-surface-base',   min: 1.06, decor: 1.8 }
+  ];
+
+  function renderAudit() {
+    var body = document.getElementById('audit-body');
+    var summary = document.getElementById('audit-summary');
+    if (!body || !summary) return;
+    var rows = '';
+    var pass = 0;
+    var total = 0;
+
+    AUDIT.forEach(function (row) {
+      var fg = resolveVar(row.fg);
+      var bg = resolveVar(row.bg);
+      if (!fg || !bg) return;
+      if (row.alpha) {
+        var a = parseFloat(getComputedStyle(root).getPropertyValue(row.alpha));
+        if (!isNaN(a)) fg = { r: fg.r, g: fg.g, b: fg.b, a: a };
+      }
+      var composite = fg.a < 1 ? over(fg, bg) : fg;
+      var r = ratio(composite, bg);
+      var ok = row.decor === undefined ? r >= row.min : (r >= row.min && r <= row.decor);
+      total += 1;
+      if (ok) pass += 1;
+      var threshold = row.decor === undefined ? row.min + ':1' : row.min + '–' + row.decor + ':1';
+      rows += '<tr>'
+        + '<td>' + row.role + '</td>'
+        + '<td><span class="eds-figure">' + hex(composite) + '</span></td>'
+        + '<td><span class="eds-figure">' + hex(bg) + '</span></td>'
+        + '<td class="num">' + r.toFixed(2) + ':1</td>'
+        + '<td class="num">' + threshold + '</td>'
+        + '<td class="' + (ok ? 'pass' : 'fail') + '">' + (ok ? 'PASS' : 'FAIL') + '</td>'
+        + '</tr>';
+    });
+
+    body.innerHTML = rows;
+    summary.innerHTML = '<strong>' + pass + ' / ' + total + '</strong> 项通过'
+      + (pass === total ? '：当前配色与明暗下的每一个角色都在门槛之内。' : '：有项目跌破门槛，先修色值，不要修门槛。');
+  }
+
+  /* ------------------------------------------------------------- switching */
+  function setAttribute(attribute, value, buttonGroup) {
+    root.setAttribute(attribute, value);
+    document.querySelectorAll(buttonGroup).forEach(function (button) {
+      button.setAttribute('aria-pressed', button.getAttribute(buttonGroup.slice(1, -1)) === value ? 'true' : 'false');
+    });
+  }
+
+  document.querySelectorAll('[data-palette]').forEach(function (button) {
+    button.addEventListener('click', function () {
+      setAttribute('data-eds-palette', button.getAttribute('data-palette'), '[data-palette]');
+      refresh();
+    });
+  });
+
+  document.querySelectorAll('[data-scheme]').forEach(function (button) {
+    button.addEventListener('click', function () {
+      setAttribute('data-eds-scheme', button.getAttribute('data-scheme'), '[data-scheme]');
+      refresh();
+    });
+  });
+
+  /* ---------------------------------------------------------- slam sample */
+  var plateTimer = null;
+  var slam = document.getElementById('slam-demo');
+  if (slam) {
+    slam.addEventListener('click', function () {
+      var slot = document.getElementById('plate-slot');
+      if (!slot || plateTimer !== null) return;
+      var still = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      var plate = document.createElement('div');
+      plate.className = 'eds-scrim-plate' + (still ? ' eds-scrim-plate--still' : ' eds-scrim-plate--animated');
+      plate.setAttribute('aria-hidden', 'true');
+      plate.innerHTML = '<span class="eds-scrim-plate__word">任务完成</span>';
+      plate.style.position = 'fixed';
+      plate.style.zIndex = 'var(--eds-z-celebration)';
+      document.body.appendChild(plate);
+      plateTimer = window.setTimeout(function () {
+        plate.remove();
+        plateTimer = null;
+      }, still ? 1200 : 3000);
+    });
+  }
+
+  /* ------------------------------------------------------------ wash table */
+  var WASH_ROWS = [
+    { token: '--eds-wash-hover', role: '行 / 按钮悬停', alpha: true },
+    { token: '--eds-wash-selected', role: '选中行', alpha: true },
+    { token: '--eds-wash-active', role: '按下', alpha: true },
+    { token: '--eds-wash-table', role: '表格行悬停（混色，不叠层）', mix: 15 },
+    { token: '--eds-decor-stroke', role: '等高线（canvas）', alpha: false }
+  ];
+
+  function channelDelta(a, b) {
+    return Math.max(Math.abs(a.r - b.r), Math.abs(a.g - b.g), Math.abs(a.b - b.b));
+  }
+
+  function renderWashTable() {
+    var body = document.getElementById('wash-body');
+    if (!body) return;
+    var base = resolveVar('--eds-surface-base');
+    var text = resolveVar('--eds-text-primary');
+    if (!base || !text) return;
+    var html = '';
+
+    WASH_ROWS.forEach(function (row) {
+      var fg = resolveVar(row.token);
+      if (!fg) return;
+      /* A mix is already opaque; a wash and the stroke carry their own alpha. */
+      var composite = row.mix !== undefined
+        ? over({ r: fg.r, g: fg.g, b: fg.b, a: row.mix / 100 }, base)
+        : (fg.a < 1 ? over(fg, base) : fg);
+      var delta = channelDelta(composite, base);
+      var textRatio = ratio(text, composite);
+      var textOk = textRatio >= 4.5;
+      html += '<tr>'
+        + '<td><span class="eds-figure" style="font-size:11px">' + row.token + '</span></td>'
+        + '<td>' + row.role + '</td>'
+        + '<td class="eds-figure" style="text-align:right">Δ' + delta.toFixed(0) + '/255</td>'
+        + '<td class="eds-figure" style="text-align:right;color:'
+        + (textOk ? 'var(--eds-text-secondary)' : 'var(--eds-status-error)') + '">'
+        + textRatio.toFixed(2) + ':1</td>'
+        + '</tr>';
+    });
+    body.innerHTML = html;
+  }
+
+  function refresh() {
+    renderSwatches();
+    renderTokenTable();
+    renderAudit();
+    renderWashTable();
+  }
+
+  refresh();
+})();
+</script>
+</body>
+</html>
