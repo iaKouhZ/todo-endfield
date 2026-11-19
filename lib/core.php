@@ -544,7 +544,13 @@ function tl_cookie_options(int $expires): array
     ];
 }
 
-function tl_auth_password(string $role): string
+function tl_scheme(): string
+{
+    $scheme = (string) ($_COOKIE['tl_scheme'] ?? 'light');
+    return in_array($scheme, ['light', 'dark'], true) ? $scheme : 'light';
+}
+
+function tl_auth_password(): string
 {
     return (string) cfg('auth.password', '');
 }
@@ -640,7 +646,7 @@ function tl_session_bump_version(): string
 
 function tl_auth_sign(string $role, int $expires): string
 {
-    $password = tl_auth_password($role);
+    $password = tl_auth_password();
     $material = $role . '|' . $expires . '|' . tl_session_version() . '|' . hash('sha256', $password);
     return hash_hmac('sha256', $material, (string) cfg('cookie.secret'));
 }
@@ -661,7 +667,7 @@ function tl_auth_clear(string $role): void
 
 function tl_auth_valid(string $role): bool
 {
-    if (tl_auth_password($role) === '' || (string) cfg('cookie.secret', '') === '') {
+    if (tl_auth_password() === '' || (string) cfg('cookie.secret', '') === '') {
         return false;
     }
     $raw = $_COOKIE[tl_auth_cookie($role)] ?? '';
@@ -701,7 +707,7 @@ function tl_front_allowed(): bool
 
 function tl_login(string $role, string $password): bool
 {
-    $expected = tl_auth_password($role);
+    $expected = tl_auth_password();
     if ($expected === '' || (string) cfg('cookie.secret', '') === ''
         || !hash_equals($expected, $password)) {
         return false;

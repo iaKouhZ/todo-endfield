@@ -40,8 +40,7 @@ if ($error === null && tl_admin()) {
     tl_redirect($back);
 }
 
-$scheme = (string) ($_COOKIE['tl_scheme'] ?? 'light');
-$scheme = in_array($scheme, ['light', 'dark'], true) ? $scheme : 'light';
+$scheme = tl_scheme();
 
 tl_view_head(['title' => cfg('app.name') . ' · 登录', 'scheme' => $scheme]);
 ?>

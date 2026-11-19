@@ -15,7 +15,7 @@ declare(strict_types=1);
  *   op=purge        清除完成超过 7 天的待办
  *   op=subitem_add / subitem_delete / subitem_done  子任务
  *
- * 除 complete / track 外，其余都需要后台登录。
+ * 所有操作都需要后台登录。
  */
 
 require __DIR__ . '/lib/core.php';
@@ -34,23 +34,21 @@ $isAjax = isset($_POST['ajax']);
 $back = tl_safe_path($_POST['back'] ?? null, tl_front_url());
 
 /** 统一收尾：AJAX 返回 JSON，否则写 flash 再跳回。 */
-function tl_finish(string $message, string $type = 'ok', ?string $redirect = null, array $extra = []): never
-{
-    global $isAjax, $back;
+$finish = static function (string $message, string $type = 'ok', ?string $redirect = null, array $extra = []) use ($isAjax, $back): never {
     if ($isAjax) {
         tl_json(array_merge(['ok' => $type !== 'error', 'message' => $message], $extra));
     }
     tl_flash($type, $message);
     tl_redirect($redirect ?? $back);
-}
+};
 
 try {
+    if (!tl_admin()) {
+        $finish('需要后台登录才能操作。', 'error');
+    }
     switch ($op) {
         /* ---------------------------------------------------------- 完成 / 追踪 */
         case 'complete': {
-            if (!tl_admin()) {
-                tl_finish('需要后台登录才能操作。', 'error');
-            }
             $id = (int) ($_POST['id'] ?? 0);
             $scope = (string) ($_POST['scope'] ?? 'task');
             $date = trim((string) ($_POST['date'] ?? ''));
@@ -59,14 +57,14 @@ try {
 
             if ($scope === 'occurrence') {
                 if ($date === '') {
-                    tl_finish('缺少发生日期。', 'error');
+                    $finish('缺少发生日期。', 'error');
                 }
                 $task = tl_complete_occurrence($id, $date, $done, $completedAt);
             } else {
                 $task = tl_task_set_status($id, $done ? 'done' : 'active', $completedAt);
             }
             $label = $task['title'] ?? '';
-            tl_finish(
+            $finish(
                 ($completedAt !== null ? '已更新完成时间：' : ($done ? '已标记完成：' : '已标记未完成：')) . $label,
                 'ok',
                 $back,
@@ -75,15 +73,12 @@ try {
         }
 
         case 'track': {
-            if (!tl_admin()) {
-                tl_finish('需要后台登录才能操作。', 'error');
-            }
             $id = (int) ($_POST['id'] ?? 0);
             if (!isset($_POST['tracked'])) {
-                tl_finish('缺少追踪目标状态。', 'error');
+                $finish('缺少追踪目标状态。', 'error');
             }
             $task = tl_task_set_tracked($id, (int) ((string) $_POST['tracked'] === '1'));
-            tl_finish(
+            $finish(
                 ((int) $task['tracked'] === 1 ? '已添加追踪：' : '已移除追踪：') . $task['title'],
                 'ok',
                 $back,
@@ -92,15 +87,12 @@ try {
         }
 
         case 'pin': {
-            if (!tl_admin()) {
-                tl_finish('需要后台登录才能操作。', 'error');
-            }
             $id = (int) ($_POST['id'] ?? 0);
             if (!isset($_POST['pinned'])) {
-                tl_finish('缺少置顶目标状态。', 'error');
+                $finish('缺少置顶目标状态。', 'error');
             }
             $task = tl_task_set_pin($id, (int) ((string) $_POST['pinned'] === '1'));
-            tl_finish(
+            $finish(
                 ((int) $task['pinned'] === 1 ? '已置顶：' : '已取消置顶：') . $task['title'],
                 'ok',
                 $back,
@@ -110,18 +102,15 @@ try {
 
         /* ------------------------------------------------------------- 批量操作 */
         case 'bulk': {
-            if (!tl_admin()) {
-                tl_finish('需要后台登录才能操作。', 'error');
-            }
             $ids = array_values(array_unique(array_filter(array_map('intval', (array) ($_POST['ids'] ?? [])), fn ($id) => $id > 0)));
             $bulkOp = (string) ($_POST['bulk_op'] ?? '');
             if ($ids === []) {
-                tl_finish('没有选中任何事项。', 'error');
+                $finish('没有选中任何事项。', 'error');
             }
 
             if ($bulkOp === 'delete') {
                 $count = tl_tasks_delete($ids);
-                tl_finish('已删除 ' . $count . ' 条待办（按唯一任务计）。');
+                $finish('已删除 ' . $count . ' 条待办（按唯一任务计）。');
             }
 
             if (str_starts_with($bulkOp, 'status:')) {
@@ -130,17 +119,14 @@ try {
                 $hint = $status === 'done'
                     ? '（重复任务为整串完成，并取消追踪）'
                     : '';
-                tl_finish('已将 ' . $count . ' 条待办设为「' . tl_status_label($status) . '」。' . $hint);
+                $finish('已将 ' . $count . ' 条待办设为「' . tl_status_label($status) . '」。' . $hint);
             }
 
-            tl_finish('未知的批量操作。', 'error');
+            $finish('未知的批量操作。', 'error');
         }
 
         /* --------------------------------------------------------------- 待办 */
         case 'task_save': {
-            if (!tl_admin()) {
-                tl_finish('需要后台登录才能操作。', 'error');
-            }
             $id = (int) ($_POST['id'] ?? 0);
             $input = [
                 'title'           => $_POST['title'] ?? '',
@@ -197,73 +183,55 @@ try {
                 $pdo->rollBack();
                 throw $e;
             }
-            tl_finish($id > 0 ? '已保存修改。' : '已添加待办。', 'ok', $listUrl);
+            $finish($id > 0 ? '已保存修改。' : '已添加待办。', 'ok', $listUrl);
         }
 
         case 'subitem_add': {
-            if (!tl_admin()) {
-                tl_finish('需要后台登录才能操作。', 'error');
-            }
             $taskId = (int) ($_POST['task_id'] ?? 0);
             $title = (string) ($_POST['title'] ?? '');
             tl_subitem_add($taskId, $title, $_POST);
-            tl_finish('已添加子任务。');
+            $finish('已添加子任务。');
         }
 
         case 'subitem_delete': {
-            if (!tl_admin()) {
-                tl_finish('需要后台登录才能操作。', 'error');
-            }
             $taskId = (int) ($_POST['task_id'] ?? 0);
             $subId = (int) ($_POST['subitem_id'] ?? 0);
             tl_subitem_delete($subId, $taskId);
-            tl_finish('已删除子任务。');
+            $finish('已删除子任务。');
         }
 
         case 'subitem_done': {
-            if (!tl_admin()) {
-                tl_finish('需要后台登录才能操作。', 'error');
-            }
             $taskId = (int) ($_POST['task_id'] ?? 0);
             $subId = (int) ($_POST['subitem_id'] ?? 0);
             $done = (string) ($_POST['done'] ?? '1') === '1';
             $completedAt = $done ? tl_parse_completion_input($_POST['completed_at'] ?? '') : null;
             tl_subitem_set_done($subId, $taskId, $done, $completedAt);
-            tl_finish($completedAt !== null ? '已更新子任务完成时间。' : ($done ? '已完成子任务。' : '已恢复子任务为未完成。'));
+            $finish($completedAt !== null ? '已更新子任务完成时间。' : ($done ? '已完成子任务。' : '已恢复子任务为未完成。'));
         }
 
         case 'task_delete': {
-            if (!tl_admin()) {
-                tl_finish('需要后台登录才能操作。', 'error');
-            }
             $id = (int) ($_POST['id'] ?? 0);
             $task = tl_task($id);
             if ($task === null) {
-                tl_finish('待办不存在。', 'error');
+                $finish('待办不存在。', 'error');
             }
             tl_task_delete($id);
-            tl_finish('已删除：' . $task['title']);
+            $finish('已删除：' . $task['title']);
         }
 
         /* --------------------------------------------------------------- 分类 */
         case 'cat_save': {
-            if (!tl_admin()) {
-                tl_finish('需要后台登录才能操作。', 'error');
-            }
             $id = (int) ($_POST['id'] ?? 0);
             $name = (string) ($_POST['name'] ?? '');
             if ($id > 0) {
                 tl_category_rename($id, $name);
-                tl_finish('分类已重命名为「' . trim($name) . '」。', 'ok', tl_admin_url(['view' => 'categories']));
+                $finish('分类已重命名为「' . trim($name) . '」。', 'ok', tl_admin_url(['view' => 'categories']));
             }
             tl_category_create($name);
-            tl_finish('已添加分类「' . trim($name) . '」。', 'ok', tl_admin_url(['view' => 'categories']));
+            $finish('已添加分类「' . trim($name) . '」。', 'ok', tl_admin_url(['view' => 'categories']));
         }
 
         case 'cat_delete': {
-            if (!tl_admin()) {
-                tl_finish('需要后台登录才能操作。', 'error');
-            }
             $id = (int) ($_POST['id'] ?? 0);
             $strategy = (string) ($_POST['strategy'] ?? 'uncategorize');
             $strategy = $strategy === 'delete' ? 'delete' : 'uncategorize';
@@ -271,14 +239,11 @@ try {
             $message = $strategy === 'delete'
                 ? '已删除分类「' . $result['category'] . '」及其下 ' . $result['tasks'] . ' 条待办。'
                 : '已删除分类「' . $result['category'] . '」，' . $result['tasks'] . ' 条待办归为未分类。';
-            tl_finish($message, 'ok', tl_admin_url(['view' => 'categories']));
+            $finish($message, 'ok', tl_admin_url(['view' => 'categories']));
         }
 
         /* --------------------------------------------------------------- 清理 */
         case 'revoke_sessions': {
-            if (!tl_admin()) {
-                tl_finish('需要后台登录才能操作。', 'error');
-            }
             tl_session_bump_version();
             tl_auth_clear('admin');
             tl_auth_clear('front');
@@ -287,22 +252,19 @@ try {
         }
 
         case 'purge': {
-            if (!tl_admin()) {
-                tl_finish('需要后台登录才能操作。', 'error');
-            }
             $count = tl_purge_done((int) cfg('purge_days', 7));
-            tl_finish('已清除 ' . $count . ' 条完成超过 ' . (int) cfg('purge_days', 7) . ' 天的待办。', 'ok', tl_admin_url());
+            $finish('已清除 ' . $count . ' 条完成超过 ' . (int) cfg('purge_days', 7) . ' 天的待办。', 'ok', tl_admin_url());
         }
 
         default:
-            tl_finish('未知操作。', 'error');
+            $finish('未知操作。', 'error');
     }
 } catch (InvalidArgumentException $error) {
-    tl_finish($error->getMessage(), 'error');
+    $finish($error->getMessage(), 'error');
 } catch (Throwable $error) {
     if ((bool) cfg('app.debug', false)) {
-        tl_finish($error->getMessage(), 'error');
+        $finish($error->getMessage(), 'error');
     }
     error_log('action.php: ' . $error->getMessage());
-    tl_finish('操作失败，请稍后再试。', 'error');
+    $finish('操作失败，请稍后再试。', 'error');
 }

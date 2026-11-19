@@ -838,15 +838,6 @@ function tl_repeat_step(DateTimeImmutable $date, string $unit, int $interval): D
     };
 }
 
-function tl_repeat_prev(DateTimeImmutable $date, string $unit, int $interval): DateTimeImmutable
-{
-    return match ($unit) {
-        'week'  => $date->modify('-' . ($interval * 7) . ' days'),
-        'month' => tl_add_months($date, -$interval),
-        default => $date->modify('-' . $interval . ' days'),
-    };
-}
-
 /**
  * 锚点之后的第 $n 次发生：$n=0 为锚点当天，$n=1 为第一次间隔后。
  * 月重复为 anchor + n×间隔 月（日号按目标月夹取），不链式累加。
@@ -1036,18 +1027,6 @@ function tl_occurrence_before(array $task, DateTimeImmutable $before): ?DateTime
     return $last;
 }
 
-function tl_occurrence_done(int $taskId, string $date): bool
-{
-    static $cache = [];
-    $key = $taskId . '|' . $date;
-    if (array_key_exists($key, $cache)) {
-        return $cache[$key];
-    }
-    $stmt = db()->prepare('SELECT 1 FROM task_occurrences WHERE task_id = ? AND occur_date = ?');
-    $stmt->execute([$taskId, $date]);
-    return $cache[$key] = (bool) $stmt->fetchColumn();
-}
-
 /** 一次取回若干任务的完成记录，避免逐行查询。 */
 function tl_occurrence_map(array $taskIds, ?string $fromDate = null, ?string $toDate = null): array
 {
@@ -1079,11 +1058,6 @@ function tl_occurrence_map(array $taskIds, ?string $fromDate = null, ?string $to
 function tl_occurrences_clear(int $taskId): void
 {
     db()->prepare('DELETE FROM task_occurrences WHERE task_id = ?')->execute([$taskId]);
-}
-
-function tl_completed_occurrence_map(array $taskIds): array
-{
-    return tl_occurrence_map($taskIds);
 }
 
 /* ===========================================================================
@@ -1122,11 +1096,6 @@ function tl_purge_done(int $days = 7): int
 /* ===========================================================================
    派生属性 · 供视图使用
    ========================================================================= */
-function tl_task_due(array $task): ?DateTimeImmutable
-{
-    return tl_parse_due($task);
-}
-
 function tl_is_overdue(array $task, ?DateTimeImmutable $now = null): bool
 {
     if (($task['status'] ?? '') === 'done') {

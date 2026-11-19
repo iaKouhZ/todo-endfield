@@ -106,8 +106,7 @@ $backUrl = tl_front_url(array_filter([
     'date' => $selectedDate,
 ], fn ($v) => $v !== null && $v !== ''));
 
-$scheme = (string) ($_COOKIE['tl_scheme'] ?? 'light');
-$scheme = in_array($scheme, ['light', 'dark'], true) ? $scheme : 'light';
+$scheme = tl_scheme();
 
 tl_view_head(['title' => cfg('app.name') . ' · 追踪', 'scheme' => $scheme]);
 ?>
