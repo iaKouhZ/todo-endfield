@@ -509,8 +509,9 @@ function tl_subitem_title_validate(string $title): string
 function tl_task_subitems(int $taskId): array
 {
     $stmt = db()->prepare(
-        'SELECT id, task_id, title, due_date, due_time, done, completed_at, position, created_at, updated_at
-         FROM task_subitems WHERE task_id = ? ORDER BY position ASC, id ASC'
+        "SELECT id, task_id, title, due_date, due_time, done, completed_at, position, created_at, updated_at
+         FROM task_subitems WHERE task_id = ?
+         ORDER BY due_date IS NULL, due_date, COALESCE(due_time, '23:59'), position, id"
     );
     $stmt->execute([$taskId]);
     return $stmt->fetchAll();

@@ -134,6 +134,24 @@ $test['SQL 约束、分类缓存和精确搜索'] = static function (): void {
         same($count, tl_task_counts_sql($filters));
     }
 };
+$test['子任务按截止时间排序，并按原 ID 保存编辑'] = static function (): void {
+    $task = tl_task_create(['title' => '子任务排序']);
+    $undated = tl_subitem_add($task, '未设日期');
+    $nextYear = tl_subitem_add($task, '次年', ['due_date' => '2027-01-01']);
+    $dateOnly = tl_subitem_add($task, '仅设日期', ['due_date' => '2026-12-31']);
+    $morning = tl_subitem_add($task, '上午', ['due_date' => '2026-12-31', 'due_time' => '09:00']);
+    $sameTime = tl_subitem_add($task, '同一时刻', ['due_date' => '2026-12-31', 'due_time' => '09:00']);
+    $endOfDay = tl_subitem_add($task, '午夜前', ['due_date' => '2026-12-31', 'due_time' => '23:59']);
+    $rows = tl_task_subitems($task);
+    same([$morning, $sameTime, $dateOnly, $endOfDay, $nextYear, $undated], array_column($rows, 'id'));
+
+    $rows[0]['due_date'] = '2027-01-02';
+    tl_subitems_save_rows($task, $rows);
+    $rows = tl_task_subitems($task);
+    same([$sameTime, $dateOnly, $endOfDay, $nextYear, $morning, $undated], array_column($rows, 'id'));
+    same('2027-01-02', $rows[4]['due_date']);
+    same('上午', $rows[4]['title']);
+};
 $test['清理、范围裁剪及备份往返'] = static function (): void {
     $task = tl_task_create([
         'title' => '月末', 'due_date' => '2025-12-31', 'repeat_unit' => 'month', 'repeat_interval' => 1,
