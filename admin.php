@@ -69,7 +69,7 @@ $pages = max(1, (int) ceil($totalTasks / $perPage));
 $page = min($page, $pages);
 $pageTasks = tl_tasks($listFilters + ['limit' => $perPage, 'offset' => ($page - 1) * $perPage]);
 
-$globalCounts = tl_counts(tl_tasks(['status' => 'all']));
+$globalCounts = tl_task_counts_sql();
 $scheme = (string) ($_COOKIE['tl_scheme'] ?? 'light');
 $scheme = in_array($scheme, ['light', 'dark'], true) ? $scheme : 'light';
 

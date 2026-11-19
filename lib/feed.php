@@ -114,19 +114,38 @@ function tl_group_by_category(array $entries): array
  * $scope = 'tracked' 取追踪中的置顶项，'planned' 取规划中的置顶项。
  * 重复任务只挑一次发生：漏掉的过去那次优先（算逾期），否则取最近的一次。
  */
-function tl_front_pinned(array $filters = [], string $scope = 'tracked', array $weekParents = []): array
+/** Bound reads by the earliest displayed past occurrence and latest possible row. */
+function tl_feed_occurrence_map(array $tasks, DateTimeImmutable $today, DateTimeImmutable $end, bool $includePast): array
+{
+    $start = $today;
+    if ($includePast) {
+        foreach ($tasks as $task) {
+            $due = tl_parse_date($task['due_date'] ?? null);
+            if ($due === null) {
+                continue;
+            }
+            $past = tl_occurrence_before($task, $today);
+            $start = min($start, $past ?? $due);
+            $end = max($end, $due);
+        }
+    }
+    return tl_occurrence_map(array_column($tasks, 'id'), tl_ymd($start), tl_ymd($end));
+}
+
+function tl_front_pinned(array $filters = [], string $scope = 'tracked', array $weekParents = [], ?array $trackedTasks = null): array
 {
     $today = tl_today();
     $horizon = $today->modify('+' . max(1, (int) cfg('front.horizon_days', 365)) . ' days');
 
     $scopeFilters = ['pinned' => true, 'status' => 'all', 'not_done' => true];
 
-    $tasks = tl_tasks($filters + $scopeFilters);
+    $tasks = $trackedTasks === null ? tl_tasks($filters + $scopeFilters)
+        : array_filter($trackedTasks, static fn (array $task): bool => (int) $task['pinned'] === 1);
     $tasks = array_values(array_filter(
         $tasks,
         $scope === 'planned' ? 'tl_task_in_planned_view' : 'tl_task_in_tracked_view'
     ));
-    $occurrenceMap = tl_occurrence_map(array_column($tasks, 'id'));
+    $occurrenceMap = tl_feed_occurrence_map($tasks, $today, $horizon, true);
 
     $entries = [];
     foreach ($tasks as $task) {
@@ -207,17 +226,17 @@ function tl_prepend_pinned(array $sections, array $pinned): array
  * 逾期和近 N 天两段内先按分类，再按截止时间。
  * 重复任务在区间内逐日展开；「每天」的任务于是这一周每天都会出现。
  */
-function tl_front_tracked(array $filters = []): array
+function tl_front_tracked(array $filters = [], ?array $tasks = null): array
 {
     $today = tl_today();
     $overdueLimit = max(1, (int) cfg('front.overdue_limit', 10));
     $weekTo = max(0, (int) cfg('front.week_to', 7));
 
-    $tasks = tl_tasks($filters + ['status' => 'all', 'tracked' => true, 'not_done' => true]);
+    $tasks ??= tl_tasks($filters + ['status' => 'all', 'tracked' => true, 'not_done' => true]);
     $tasks = array_values(array_filter($tasks, 'tl_task_in_tracked_view'));
-    $occurrenceMap = tl_occurrence_map(array_column($tasks, 'id'));
-
     $weekEnd = $today->modify('+' . $weekTo . ' days');
+    $maxInterval = max([1, ...array_map(static fn (array $task): int => (int) ($task['repeat_interval'] ?? 1), $tasks)]);
+    $occurrenceMap = tl_feed_occurrence_map($tasks, $today, $weekEnd->modify("+$maxInterval months"), true);
     $subitems = tl_due_subitems_by_task($today, $weekEnd);
     $weekParents = [];
 
@@ -382,9 +401,9 @@ function tl_front_scope(string $scope, array $filters = []): array
     }
 
     $tasks = tl_tasks($filters + $scopeFilters);
-    $occurrenceMap = tl_occurrence_map(array_column($tasks, 'id'));
     $today = tl_today();
     $horizon = $today->modify('+' . max(1, (int) cfg('front.horizon_days', 365)) . ' days');
+    $occurrenceMap = tl_feed_occurrence_map($tasks, $today, $horizon, false);
 
     $entries = [];
     $overdue = [];
@@ -429,7 +448,7 @@ function tl_front_scope(string $scope, array $filters = []): array
 
     $result = [
         'entries' => $entries,
-        'groups'  => tl_group_by_category(tl_sort_entries($entries, 'time')),
+        'groups'  => $scope === 'planned' ? [] : tl_group_by_category(tl_sort_entries($entries, 'time')),
         'count'   => count($entries),
     ];
 
@@ -469,24 +488,5 @@ function tl_front_scope(string $scope, array $filters = []): array
  */
 function tl_front_counts(array $filters = []): array
 {
-    $allTasks = tl_tasks($filters + ['status' => 'all']);
-    $all = tl_counts($allTasks);
-
-    $trackedOpen = 0;
-    $plannedOpen = 0;
-    foreach ($allTasks as $task) {
-        if (($task['status'] ?? '') === 'done') {
-            continue;
-        }
-        if (tl_task_in_tracked_view($task)) {
-            $trackedOpen++;
-        }
-        if (tl_task_in_planned_view($task)) {
-            $plannedOpen++;
-        }
-    }
-
-    $all['tracked_open'] = $trackedOpen;
-    $all['planned_open'] = $plannedOpen;
-    return $all;
+    return tl_task_counts_sql($filters + ['status' => 'all']);
 }

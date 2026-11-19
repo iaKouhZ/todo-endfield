@@ -80,7 +80,7 @@ if ($selectedId !== null) {
     if ($task !== null) {
         $repeat = tl_task_repeat($task);
         $date = $selectedDate ?? $task['due_date'];
-        $occurrenceMap = tl_occurrence_map([$selectedId]);
+        $occurrenceMap = $date === null ? [] : tl_occurrence_map([$selectedId], $date, $date);
         $wholeDone = $task['status'] === 'done';
         if ($repeat === null) {
             $occurrence = false;
@@ -223,8 +223,11 @@ tl_view_head(['title' => cfg('app.name') . ' · 追踪', 'scheme' => $scheme]);
     <main class="tl-main">
       <div class="tl-main__scroll">
         <?php if ($tab === 'tracked'): ?>
-          <?php $trackedFeed = tl_front_tracked($filters); ?>
-          <?php tl_sections_view(tl_prepend_pinned($trackedFeed['sections'], tl_front_pinned($filters, 'tracked', $trackedFeed['week_parents'])), $admin, $selectedId); ?>
+          <?php
+          $trackedTasks = tl_tasks($filters + ['tracked' => true, 'not_done' => true]);
+          $trackedFeed = tl_front_tracked($filters, $trackedTasks);
+          ?>
+          <?php tl_sections_view(tl_prepend_pinned($trackedFeed['sections'], tl_front_pinned($filters, 'tracked', $trackedFeed['week_parents'], $trackedTasks)), $admin, $selectedId); ?>
         <?php elseif ($tab === 'planned'): ?>
           <?php $plannedFeed = tl_front_scope('planned', $filters); ?>
           <?php tl_sections_view(tl_prepend_pinned($plannedFeed['sections'], tl_front_pinned($filters, 'planned')), $admin, $selectedId); ?>

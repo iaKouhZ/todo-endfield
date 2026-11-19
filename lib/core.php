@@ -410,14 +410,43 @@ function db(): PDO
         throw new RuntimeException('无法创建数据目录：' . $dir);
     }
 
-    $pdo = new PDO('sqlite:' . $path);
-    $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-    $pdo->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
-    $pdo->exec('PRAGMA foreign_keys = ON');
-    $pdo->exec('PRAGMA journal_mode = WAL');
-    $pdo->exec('PRAGMA busy_timeout = 4000');
-
-    tl_db_migrate($pdo);
+    // Serialise first connections so no request sees a partially created schema.
+    $lock = fopen($path . '.init.lock', 'c');
+    if ($lock === false) {
+        throw new RuntimeException('无法打开数据库初始化锁。');
+    }
+    try {
+        if (!flock($lock, LOCK_EX)) {
+            throw new RuntimeException('无法锁定数据库初始化。');
+        }
+        clearstatcache(true, $path);
+        $needsInit = !is_file($path) || filesize($path) === 0;
+        $connection = new PDO('sqlite:' . $path);
+        $connection->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+        $connection->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
+        $connection->exec('PRAGMA foreign_keys = ON');
+        $connection->exec('PRAGMA busy_timeout = 4000');
+        if ($needsInit) {
+            $connection->exec('PRAGMA journal_mode = WAL');
+            $connection->beginTransaction();
+            try {
+                tl_db_migrate($connection);
+                $connection->commit();
+            } catch (Throwable $error) {
+                $connection->rollBack();
+                $connection = null;
+                foreach ([$path, $path . '-wal', $path . '-shm'] as $file) {
+                    if (is_file($file)) {
+                        unlink($file);
+                    }
+                }
+                throw $error;
+            }
+        }
+        $pdo = $connection;
+    } finally {
+        fclose($lock);
+    }
     return $pdo;
 }
 

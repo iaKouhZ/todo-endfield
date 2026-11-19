@@ -14,12 +14,22 @@ declare(strict_types=1);
 /* ===========================================================================
    分类
    ========================================================================= */
-function tl_categories(): array
+function tl_categories(bool $reset = false): array
 {
-    return db()->query(
+    static $categories = null;
+    if ($reset) {
+        $categories = null;
+        return [];
+    }
+    return $categories ??= db()->query(
         'SELECT c.*, (SELECT COUNT(*) FROM tasks t WHERE t.category_id = c.id) AS task_count
          FROM categories c ORDER BY c.position ASC, c.id ASC'
     )->fetchAll();
+}
+
+function tl_categories_reset(): void
+{
+    tl_categories(true);
 }
 
 function tl_category(int $id): ?array
@@ -53,6 +63,7 @@ function tl_category_create(string $name): int
     $max = (int) db()->query('SELECT COALESCE(MAX(position), 0) FROM categories')->fetchColumn();
     $stmt = db()->prepare('INSERT INTO categories (name, position, created_at) VALUES (?, ?, ?)');
     $stmt->execute([$name, $max + 10, tl_now()->format('Y-m-d H:i:s')]);
+    tl_categories_reset();
     return (int) db()->lastInsertId();
 }
 
@@ -71,6 +82,7 @@ function tl_category_rename(int $id, string $name): void
     }
     $stmt = db()->prepare('UPDATE categories SET name = ? WHERE id = ?');
     $stmt->execute([$name, $id]);
+    tl_categories_reset();
 }
 
 /**
@@ -103,6 +115,7 @@ function tl_category_delete(int $id, string $taskStrategy): array
         throw $error;
     }
 
+    tl_categories_reset();
     return ['category' => $category['name'], 'tasks' => $affected, 'strategy' => $taskStrategy];
 }
 
@@ -215,6 +228,28 @@ function tl_task_count(array $filters = []): int
     return (int) $stmt->fetchColumn();
 }
 
+function tl_task_counts_sql(array $filters = []): array
+{
+    [$whereSql, $params] = tl_tasks_where($filters);
+    $sql = 'SELECT t.status, t.tracked, COUNT(*) AS cnt
+            FROM tasks t LEFT JOIN categories c ON c.id = t.category_id'
+        . $whereSql . ' GROUP BY t.status, t.tracked';
+    $stmt = db()->prepare($sql);
+    $stmt->execute($params);
+    $counts = array_fill_keys(['active', 'planned', 'done', 'all', 'tracked', 'tracked_open', 'planned_open'], 0);
+    foreach ($stmt as $row) {
+        $n = (int) $row['cnt'];
+        $status = $row['status'];
+        $counts[$status] += $n;
+        $counts['all'] += $n;
+        if ($status !== 'done') {
+            $counts[(int) $row['tracked'] === 1 ? 'tracked_open' : 'planned_open'] += $n;
+        }
+    }
+    $counts['tracked'] = $counts['tracked_open'];
+    return $counts;
+}
+
 /* ===========================================================================
    待办事项 · 写入
    ========================================================================= */
@@ -311,6 +346,7 @@ function tl_task_create(array $input): int
         ':created_at'      => $now,
         ':updated_at'      => $now,
     ]);
+    tl_categories_reset();
     return (int) db()->lastInsertId();
 }
 
@@ -429,11 +465,13 @@ function tl_task_update(int $id, array $input): void
         $completedAt, $now, $id,
     ]);
     tl_subitems_sync_with_parent_status($id, $data['status'], $task['status'], $completedAt);
+    tl_categories_reset();
 }
 
 function tl_task_delete(int $id): void
 {
     db()->prepare('DELETE FROM tasks WHERE id = ?')->execute([$id]);
+    tl_categories_reset();
 }
 
 /* ===========================================================================
@@ -626,6 +664,7 @@ function tl_tasks_delete(array $ids): int
     $place = implode(',', array_fill(0, count($ids), '?'));
     $stmt = db()->prepare('DELETE FROM tasks WHERE id IN (' . $place . ')');
     $stmt->execute($ids);
+    tl_categories_reset();
     return $stmt->rowCount();
 }
 
@@ -945,39 +984,39 @@ function tl_occurrences_between(array $task, DateTimeImmutable $from, DateTimeIm
     $interval = max(1, $repeat['interval']);
     $anchor = $anchor->setTime(0, 0);
 
-    if ($unit === 'month') {
-        $k = 0;
-        $guard = 0;
-        while (tl_repeat_nth($anchor, $unit, $interval, $k) < $from && $guard++ < 200000) {
-            $k++;
-        }
-        $cursor = tl_repeat_nth($anchor, $unit, $interval, $k);
-        if ($cursor > $to) {
-            return [];
-        }
-        $out = [];
-        $guard = 0;
-        while ($cursor <= $to && $guard++ < 200000) {
-            $out[] = $cursor->format('Y-m-d');
-            $k++;
-            $cursor = tl_repeat_nth($anchor, $unit, $interval, $k);
-        }
-        return $out;
-    }
-
-    $cursor = $anchor;
-    $guard = 0;
-    while ($cursor < $from && $guard++ < 200000) {
-        $cursor = tl_repeat_step($cursor, $unit, $interval);
-    }
-    if ($cursor > $to) {
+    if ($from > $to || $anchor > $to) {
         return [];
     }
+    $k = 0;
+    if ($anchor < $from) {
+        if ($unit === 'month') {
+            $lo = 0;
+            $hi = 1;
+            while (tl_repeat_nth($anchor, $unit, $interval, $hi) < $from) {
+                $hi *= 2;
+            }
+            while ($lo < $hi) {
+                $mid = intdiv($lo + $hi, 2);
+                if (tl_repeat_nth($anchor, $unit, $interval, $mid) < $from) {
+                    $lo = $mid + 1;
+                } else {
+                    $hi = $mid;
+                }
+            }
+            $k = $lo;
+        } else {
+            $step = $unit === 'week' ? $interval * 7 : $interval;
+            $days = (int) $anchor->diff($from)->days;
+            $k = intdiv($days + $step - 1, $step);
+        }
+    }
     $out = [];
-    $guard = 0;
-    while ($cursor <= $to && $guard++ < 200000) {
+    for ($n = 0; $n < 200000; $n++, $k++) {
+        $cursor = tl_repeat_nth($anchor, $unit, $interval, $k);
+        if ($cursor > $to) {
+            break;
+        }
         $out[] = $cursor->format('Y-m-d');
-        $cursor = tl_repeat_step($cursor, $unit, $interval);
     }
     return $out;
 }
@@ -1010,18 +1049,29 @@ function tl_occurrence_done(int $taskId, string $date): bool
 }
 
 /** 一次取回若干任务的完成记录，避免逐行查询。 */
-function tl_occurrence_map(array $taskIds): array
+function tl_occurrence_map(array $taskIds, ?string $fromDate = null, ?string $toDate = null): array
 {
     $taskIds = array_values(array_unique(array_map('intval', $taskIds)));
     if ($taskIds === []) {
         return [];
     }
-    $place = implode(',', array_fill(0, count($taskIds), '?'));
-    $stmt = db()->prepare('SELECT task_id, occur_date, completed_at FROM task_occurrences WHERE task_id IN (' . $place . ')');
-    $stmt->execute($taskIds);
     $map = [];
-    foreach ($stmt->fetchAll() as $row) {
-        $map[(int) $row['task_id'] . '|' . $row['occur_date']] = $row['completed_at'];
+    foreach (array_chunk($taskIds, 500) as $ids) {
+        $place = implode(',', array_fill(0, count($ids), '?'));
+        $sql = 'SELECT task_id, occur_date, completed_at FROM task_occurrences WHERE task_id IN (' . $place . ')';
+        if ($fromDate !== null) {
+            $sql .= ' AND occur_date >= ?';
+            $ids[] = $fromDate;
+        }
+        if ($toDate !== null) {
+            $sql .= ' AND occur_date <= ?';
+            $ids[] = $toDate;
+        }
+        $stmt = db()->prepare($sql);
+        $stmt->execute($ids);
+        foreach ($stmt as $row) {
+            $map[(int) $row['task_id'] . '|' . $row['occur_date']] = $row['completed_at'];
+        }
     }
     return $map;
 }
@@ -1042,9 +1092,31 @@ function tl_completed_occurrence_map(array $taskIds): array
 function tl_purge_done(int $days = 7): int
 {
     $cutoff = tl_now()->modify('-' . max(0, $days) . ' days')->format('Y-m-d H:i:s');
-    $stmt = db()->prepare("DELETE FROM tasks WHERE status = 'done' AND completed_at IS NOT NULL AND completed_at < ?");
-    $stmt->execute([$cutoff]);
-    return $stmt->rowCount();
+    $pdo = db();
+    $pdo->beginTransaction();
+    try {
+        $stmt = $pdo->prepare("DELETE FROM tasks WHERE status = 'done' AND completed_at IS NOT NULL AND completed_at < ?");
+        $stmt->execute([$cutoff]);
+        $removed = $stmt->rowCount();
+        $pdo->prepare(<<<'SQL'
+            DELETE FROM task_occurrences
+            WHERE completed_at < :cutoff AND occur_date < :today
+            AND NOT EXISTS (
+                SELECT 1 FROM tasks t
+                WHERE t.id = task_occurrences.task_id AND t.status <> 'done' AND t.repeat_unit IS NOT NULL
+                AND task_occurrences.occur_date = (
+                    SELECT MAX(o.occur_date) FROM task_occurrences o
+                    WHERE o.task_id = t.id AND o.occur_date < :today
+                )
+            )
+        SQL)->execute(['cutoff' => $cutoff, 'today' => tl_today()->format('Y-m-d')]);
+        $pdo->commit();
+    } catch (Throwable $error) {
+        $pdo->rollBack();
+        throw $error;
+    }
+    tl_categories_reset();
+    return $removed;
 }
 
 /* ===========================================================================
