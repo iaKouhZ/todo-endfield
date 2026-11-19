@@ -39,7 +39,7 @@ function tl_view_foot(): void
     ?>
 <div class="tl-footer">
   <span>时间按北京时间（<?= e((string) cfg('app.timezone', 'Asia/Shanghai')) ?>）</span>
-  <div style="display:flex;align-items:center;gap:14px">
+  <div class="tl-topbar__controls">
     <?php tl_theme_switch(); ?>
   </div>
 </div>
@@ -118,7 +118,7 @@ function tl_topbar(string $active): void
     </div>
     <?php if ($isAdmin): ?>
       <a class="eds-button eds-button--solid" href="<?= e(tl_admin_url()) ?>">后台工作台</a>
-      <form method="post" action="<?= e(tl_logout_url()) ?>" style="margin:0">
+      <form class="tl-form-flush" method="post" action="<?= e(tl_logout_url()) ?>">
         <?= tl_csrf_field() ?>
         <input type="hidden" name="role" value="admin">
         <input type="hidden" name="back" value="<?= e(tl_front_url()) ?>">
@@ -184,7 +184,7 @@ function tl_row_view(array $entry, bool $admin, bool $selectable, ?int $selected
     <input class="tl-row__check" type="checkbox" name="ids[]" value="<?= $id ?>"
            form="bulk-form" data-bulk-check aria-label="选择：<?= e($task['title']) ?>">
   <?php else: ?>
-    <span class="tl-row__check" style="visibility:hidden" aria-hidden="true"></span>
+    <span class="tl-row__check--placeholder tl-row__check" aria-hidden="true"></span>
   <?php endif; ?>
 
   <a class="tl-row__link" href="<?= e($openUrl) ?>">
@@ -322,8 +322,8 @@ function tl_empty_block(string $title, string $hint, string $mark = 'NOTHING HER
 {
     ?>
 <div class="tl-empty tl-empty--center">
-  <span style="font-size:var(--eds-text-lg);color:var(--eds-text-secondary)"><?= e($title) ?></span>
-  <span style="font-size:var(--eds-text-sm)"><?= e($hint) ?></span>
+  <span class="tl-empty-title"><?= e($title) ?></span>
+  <span class="tl-empty-hint"><?= e($hint) ?></span>
 </div>
 <?php
 }
@@ -374,7 +374,7 @@ function tl_detail_view(?array $entry, bool $admin, string $backUrl = ''): void
 <aside class="tl-detail" id="detail" aria-label="任务详情">
   <div class="tl-detail__empty">
     <span class="tl-detail__empty-mark">↖</span>
-    <span style="font-size:var(--eds-text-md);color:var(--eds-text-secondary)">选择左侧任一事项</span>
+    <span class="tl-detail-placeholder">选择左侧任一事项</span>
   </div>
   <?php if ($admin): ?>
     <div class="tl-detail__foot">
@@ -560,7 +560,7 @@ function tl_detail_view(?array $entry, bool $admin, string $backUrl = ''): void
     <?php if ($admin): ?>
       <div class="tl-detail__actions">
         <span class="tl-detail__hint">Admin</span>
-        <form method="post" action="<?= e(tl_action_url()) ?>" style="margin:0;display:contents">
+        <form class="tl-form-contents" method="post" action="<?= e(tl_action_url()) ?>">
           <?= tl_csrf_field() ?>
           <input type="hidden" name="op" value="complete">
           <input type="hidden" name="id" value="<?= $id ?>">
@@ -572,7 +572,7 @@ function tl_detail_view(?array $entry, bool $admin, string $backUrl = ''): void
             <?= $isDoneNow ? '标记为未完成' : '标记为完成' ?>
           </button>
         </form>
-        <form method="post" action="<?= e(tl_action_url()) ?>" style="margin:0;display:contents">
+        <form class="tl-form-contents" method="post" action="<?= e(tl_action_url()) ?>">
           <?= tl_csrf_field() ?>
           <input type="hidden" name="op" value="track">
           <input type="hidden" name="id" value="<?= $id ?>">
@@ -580,7 +580,7 @@ function tl_detail_view(?array $entry, bool $admin, string $backUrl = ''): void
           <input type="hidden" name="back" value="<?= e($_SERVER['REQUEST_URI'] ?? tl_front_url()) ?>">
           <button class="eds-button" type="submit"><?= $tracked ? '移除追踪' : '添加追踪' ?></button>
         </form>
-        <form method="post" action="<?= e(tl_action_url()) ?>" style="margin:0;display:contents">
+        <form class="tl-form-contents" method="post" action="<?= e(tl_action_url()) ?>">
           <?= tl_csrf_field() ?>
           <input type="hidden" name="op" value="pin">
           <input type="hidden" name="id" value="<?= $id ?>">

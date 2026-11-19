@@ -275,6 +275,17 @@ try {
         }
 
         /* --------------------------------------------------------------- 清理 */
+        case 'revoke_sessions': {
+            if (!tl_admin()) {
+                tl_finish('需要后台登录才能操作。', 'error');
+            }
+            tl_session_bump_version();
+            tl_auth_clear('admin');
+            tl_auth_clear('front');
+            tl_flash('ok', '已注销所有网页会话。');
+            tl_redirect(tl_login_url());
+        }
+
         case 'purge': {
             if (!tl_admin()) {
                 tl_finish('需要后台登录才能操作。', 'error');

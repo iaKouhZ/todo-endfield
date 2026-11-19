@@ -126,7 +126,7 @@ function tl_task(int $id): ?array
  * $filters: status (active|planned|done|all|tracked), category (int|'none'), q (string),
  *           tracked (bool), limit, offset, order.
  */
-function tl_tasks(array $filters = []): array
+function tl_tasks_where(array $filters): array
 {
     $where = [];
     $params = [];
@@ -148,8 +148,8 @@ function tl_tasks(array $filters = []): array
 
     $q = trim((string) ($filters['q'] ?? ''));
     if ($q !== '') {
-        $where[] = '(t.title LIKE :q OR t.detail LIKE :q OR c.name LIKE :q)';
-        $params[':q'] = '%' . $q . '%';
+        $where[] = "(t.title LIKE :q ESCAPE '\\' OR t.detail LIKE :q ESCAPE '\\' OR c.name LIKE :q ESCAPE '\\')";
+        $params[':q'] = '%' . strtr($q, ['\\' => '\\\\', '%' => '\\%', '_' => '\\_']) . '%';
     }
 
     if (!empty($filters['tracked'])) {
@@ -174,6 +174,12 @@ function tl_tasks(array $filters = []): array
         $where[] = 't.due_date IS NULL';
     }
 
+    return [$where === [] ? '' : ' WHERE ' . implode(' AND ', $where), $params];
+}
+
+function tl_tasks(array $filters = []): array
+{
+    [$whereSql, $params] = tl_tasks_where($filters);
     $order = $filters['order'] ?? 'due';
     $orderSql = match ($order) {
         'created'  => 't.created_at DESC, t.id DESC',
@@ -183,10 +189,7 @@ function tl_tasks(array $filters = []): array
 
     $sql = 'SELECT t.*, c.name AS category_name
             FROM tasks t LEFT JOIN categories c ON c.id = t.category_id';
-    if ($where !== []) {
-        $sql .= ' WHERE ' . implode(' AND ', $where);
-    }
-    $sql .= ' ORDER BY ' . $orderSql;
+    $sql .= $whereSql . ' ORDER BY ' . $orderSql;
 
     $limit = isset($filters['limit']) ? (int) $filters['limit'] : 0;
     $offset = isset($filters['offset']) ? (int) $filters['offset'] : 0;
@@ -205,56 +208,8 @@ function tl_tasks(array $filters = []): array
 /** 与 tl_tasks 相同条件，仅返回行数。 */
 function tl_task_count(array $filters = []): int
 {
-    $where = [];
-    $params = [];
-
-    $status = $filters['status'] ?? 'all';
-    if (in_array($status, ['active', 'planned', 'done'], true)) {
-        $where[] = 't.status = :status';
-        $params[':status'] = $status;
-    }
-
-    if (isset($filters['category']) && $filters['category'] !== '' && $filters['category'] !== null) {
-        if ($filters['category'] === 'none') {
-            $where[] = 't.category_id IS NULL';
-        } elseif (ctype_digit((string) $filters['category'])) {
-            $where[] = 't.category_id = :category';
-            $params[':category'] = (int) $filters['category'];
-        }
-    }
-
-    $q = trim((string) ($filters['q'] ?? ''));
-    if ($q !== '') {
-        $where[] = '(t.title LIKE :q OR t.detail LIKE :q OR c.name LIKE :q)';
-        $params[':q'] = '%' . $q . '%';
-    }
-
-    if (!empty($filters['tracked'])) {
-        $where[] = 't.tracked = 1';
-    }
-    if (!empty($filters['untracked'])) {
-        $where[] = 't.tracked = 0';
-    }
-    if (!empty($filters['pinned'])) {
-        $where[] = 't.pinned = 1';
-    }
-    if (!empty($filters['unpinned'])) {
-        $where[] = 't.pinned = 0';
-    }
-    if (!empty($filters['not_done'])) {
-        $where[] = "t.status <> 'done'";
-    }
-    if (!empty($filters['has_due'])) {
-        $where[] = 't.due_date IS NOT NULL';
-    }
-    if (!empty($filters['no_due'])) {
-        $where[] = 't.due_date IS NULL';
-    }
-
-    $sql = 'SELECT COUNT(*) FROM tasks t LEFT JOIN categories c ON c.id = t.category_id';
-    if ($where !== []) {
-        $sql .= ' WHERE ' . implode(' AND ', $where);
-    }
+    [$whereSql, $params] = tl_tasks_where($filters);
+    $sql = 'SELECT COUNT(*) FROM tasks t LEFT JOIN categories c ON c.id = t.category_id' . $whereSql;
     $stmt = db()->prepare($sql);
     $stmt->execute($params);
     return (int) $stmt->fetchColumn();

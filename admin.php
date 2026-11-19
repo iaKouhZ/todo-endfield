@@ -190,12 +190,12 @@ tl_view_head(['title' => cfg('app.name') . ' · 后台', 'scheme' => $scheme]);
           <table class="tl-table tl-table--clickable">
             <thead>
               <tr>
-                <th style="width:32px"><input class="tl-table__check" type="checkbox" data-check-all aria-label="全选"></th>
+                <th class="tl-col-check"><input class="tl-table__check" type="checkbox" data-check-all aria-label="全选"></th>
                 <th>摘要</th>
-                <th style="width:104px">分类</th>
-                <th style="width:132px">截止</th>
-                <th style="width:76px">状态</th>
-                <th style="width:56px;text-align:right">操作</th>
+                <th class="tl-col-category">分类</th>
+                <th class="tl-col-deadline">截止</th>
+                <th class="tl-col-status">状态</th>
+                <th class="tl-col-task-actions">操作</th>
               </tr>
             </thead>
             <tbody>
@@ -244,13 +244,13 @@ tl_view_head(['title' => cfg('app.name') . ' · 后台', 'scheme' => $scheme]);
                     <?php if ($due !== null): ?>
                       <?= e($due->format('m-d')) ?><?= !empty($task['due_time']) ? ' ' . e($task['due_time']) : '' ?>
                     <?php else: ?>
-                      <span style="color:var(--eds-text-dimmed)">—</span>
+                      <span class="tl-text-dimmed">—</span>
                     <?php endif; ?>
                   </td>
                   <td><span class="tl-status tl-status--<?= e($task['status']) ?>"><?= e(tl_status_label($task['status'])) ?></span></td>
                   <td>
                     <div class="tl-table__actions">
-                      <form method="post" action="<?= e(tl_action_url()) ?>" style="margin:0;display:inline">
+                      <form class="tl-form-inline" method="post" action="<?= e(tl_action_url()) ?>">
                         <?= tl_csrf_field() ?>
                         <input type="hidden" name="op" value="task_delete">
                         <input type="hidden" name="id" value="<?= $id ?>">
@@ -270,7 +270,7 @@ tl_view_head(['title' => cfg('app.name') . ' · 后台', 'scheme' => $scheme]);
           <?= tl_csrf_field() ?>
           <input type="hidden" name="op" value="bulk">
           <input type="hidden" name="back" value="<?= e($backUrl) ?>">
-          <div class="tl-bulk" <?= $pageTasks === [] ? 'hidden' : '' ?> data-admin-bulk style="position:static">
+          <div class="tl-bulk-static tl-bulk" <?= $pageTasks === [] ? 'hidden' : '' ?> data-admin-bulk>
             <span class="tl-bulk__count">已选 <strong data-admin-count>0</strong> 项</span>
             <button class="eds-button" type="submit" name="bulk_op" value="status:active">设为进行中</button>
             <button class="eds-button" type="submit" name="bulk_op" value="status:planned">设为规划中</button>
@@ -281,7 +281,7 @@ tl_view_head(['title' => cfg('app.name') . ' · 后台', 'scheme' => $scheme]);
         </form>
 
         <?php if ($pages > 1): ?>
-          <div class="tl-toolbar" style="border-bottom:0">
+          <div class="tl-toolbar-flat tl-toolbar">
             <?php
             $baseQuery = array_filter([
                 'status'  => $statusFilter !== 'all' ? $statusFilter : null,
@@ -291,8 +291,7 @@ tl_view_head(['title' => cfg('app.name') . ' · 后台', 'scheme' => $scheme]);
             ], fn ($v) => $v !== null);
             ?>
             <?php for ($p = 1; $p <= $pages; $p++): ?>
-              <a class="eds-button <?= $p === $page ? 'eds-button--solid' : '' ?>"
-                 style="min-width:32px;padding:3px 8px"
+              <a class="tl-clear-compact eds-button <?= $p === $page ? 'eds-button--solid' : '' ?>"
                  href="<?= e(tl_admin_url($baseQuery + ['view' => 'tasks', 'page' => $p])) ?>"><?= $p ?></a>
             <?php endfor; ?>
           </div>
@@ -310,7 +309,7 @@ tl_view_head(['title' => cfg('app.name') . ' · 后台', 'scheme' => $scheme]);
             <div class="tl-card__head">
               <span class="tl-card__title">编辑待办</span>
               <span class="tl-card__latin">#<?= (int) $editTask['id'] ?></span>
-              <a class="tl-clear tl-clear--lg" style="margin-left:auto" href="<?= e($listUrl) ?>">取消</a>
+              <a class="tl-push-right tl-clear tl-clear--lg" href="<?= e($listUrl) ?>">取消</a>
             </div>
 
             <div class="tl-form">
@@ -371,7 +370,7 @@ tl_view_head(['title' => cfg('app.name') . ' · 后台', 'scheme' => $scheme]);
 
               <?php if ($editTask['repeat_unit']): ?>
                 <div class="tl-form__row">
-                  <label class="tl-check" style="display:flex;align-items:flex-start;gap:8px">
+                  <label class="tl-check-flex tl-check">
                     <input type="checkbox" name="repeat_change_confirm" value="1">
                     <span>确认调整重复规则（可能删除不再符合新规则的单日完成记录）</span>
                   </label>
@@ -435,9 +434,9 @@ tl_view_head(['title' => cfg('app.name') . ' · 后台', 'scheme' => $scheme]);
                 </div>
                 <?php if ($editTask['status'] !== 'done'): ?>
                   <button type="button" class="eds-button tl-subitems-add" data-subitem-add-row data-subitem-editor="subitems-editor">添加子任务行</button>
-                  <p class="tl-note" style="margin-top:6px">主任务标为已完成时，所有子任务将显示为已完成。</p>
+                  <p class="tl-note-spaced tl-note">主任务标为已完成时，所有子任务将显示为已完成。</p>
                 <?php else: ?>
-                  <p class="tl-note" style="margin-top:6px">主任务已完成，子任务已全部勾选。</p>
+                  <p class="tl-note-spaced tl-note">主任务已完成，子任务已全部勾选。</p>
                 <?php endif; ?>
               </div>
 
@@ -550,7 +549,7 @@ tl_view_head(['title' => cfg('app.name') . ' · 后台', 'scheme' => $scheme]);
         <div class="tl-card">
           <div class="tl-card__head">
             <span class="tl-card__title">分类速览</span>
-            <a class="tl-clear" style="margin-left:auto" href="<?= e(tl_admin_url(['view' => 'categories'])) ?>">设置</a>
+            <a class="tl-push-right tl-clear" href="<?= e(tl_admin_url(['view' => 'categories'])) ?>">设置</a>
           </div>
           <?php foreach ($categories as $category): ?>
             <div class="tl-cat-row">
@@ -586,28 +585,28 @@ tl_view_head(['title' => cfg('app.name') . ' · 后台', 'scheme' => $scheme]);
         <div class="tl-card">
           <div class="tl-card__head">
             <span class="tl-card__title">分类列表</span>
-            <span class="tl-filter-note" style="margin-left:auto"><?= count($categories) ?> 个分类</span>
+            <span class="tl-push-right tl-filter-note"><?= count($categories) ?> 个分类</span>
           </div>
 
           <table class="tl-table">
             <thead>
               <tr>
                 <th>名称</th>
-                <th style="width:88px">待办数</th>
-                <th style="width:160px;text-align:right">操作</th>
+                <th class="tl-col-count">待办数</th>
+                <th class="tl-col-category-actions">操作</th>
               </tr>
             </thead>
             <tbody>
               <?php foreach ($categories as $category): ?>
                 <tr>
                   <td>
-                    <form method="post" action="<?= e(tl_action_url()) ?>" class="tl-inline-form" style="margin:0">
+                    <form method="post" action="<?= e(tl_action_url()) ?>" class="tl-form-flush tl-inline-form">
                       <?= tl_csrf_field() ?>
                       <input type="hidden" name="op" value="cat_save">
                       <input type="hidden" name="id" value="<?= (int) $category['id'] ?>">
                       <input type="hidden" name="back" value="<?= e(tl_admin_url(['view' => 'categories'])) ?>">
-                      <input class="tl-input" type="text" name="name" value="<?= e($category['name']) ?>"
-                             maxlength="24" aria-label="分类名称" style="max-width:220px">
+                      <input class="tl-category-name-input tl-input" type="text" name="name" value="<?= e($category['name']) ?>"
+                             maxlength="24" aria-label="分类名称">
                       <button class="eds-button" type="submit">重命名</button>
                     </form>
                   </td>
@@ -661,7 +660,7 @@ tl_view_head(['title' => cfg('app.name') . ' · 后台', 'scheme' => $scheme]);
           <p>
             该分类下有 <strong data-cat-count-label>0</strong> 条待办。请选择它们的去向：
           </p>
-          <form method="post" action="<?= e(tl_action_url()) ?>" id="cat-delete-form" style="margin:0">
+          <form class="tl-form-flush" method="post" action="<?= e(tl_action_url()) ?>" id="cat-delete-form">
             <?= tl_csrf_field() ?>
             <input type="hidden" name="op" value="cat_delete">
             <input type="hidden" name="id" value="" data-cat-id-field>
@@ -745,6 +744,13 @@ tl_view_head(['title' => cfg('app.name') . ' · 后台', 'scheme' => $scheme]);
           <div class="tl-card__head">
             <span class="tl-card__title">会话</span>
           </div>
+          <form method="post" action="<?= e(tl_action_url()) ?>" data-no-pjax>
+            <?= tl_csrf_field() ?>
+            <input type="hidden" name="op" value="revoke_sessions">
+            <button class="eds-button eds-button--danger" type="submit"
+                    data-confirm="注销所有设备上的网页会话？"
+                    data-confirm-title="注销全部设备">注销全部设备</button>
+          </form>
           <p class="tl-card__note">登录有效期 <?= (int) round((int) cfg('cookie.admin_ttl') / 3600) ?> 小时。</p>
           <form method="post" action="<?= e(tl_logout_url()) ?>">
             <?= tl_csrf_field() ?>

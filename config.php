@@ -25,6 +25,8 @@ return [
     'auth' => [
         'password' => (string) getenv('TODO_AUTH_PASSWORD'),
         'public'   => false,
+        'max_attempts' => 5,
+        'lock_minutes' => 15,
     ],
 
     /* 追踪中页面：三段（已逾期 / 近一周 / 未设截止日与远期）。 */

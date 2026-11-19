@@ -18,15 +18,25 @@ $error = null;
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     tl_csrf_check();
-    if (!tl_login('admin', (string) ($_POST['password'] ?? ''))) {
+    $ip = tl_client_ip();
+    $locked = tl_login_locked_seconds($ip);
+    if ($locked === 0) {
+        if (tl_login('admin', (string) ($_POST['password'] ?? ''))) {
+            tl_login_clear_failures($ip);
+            tl_redirect($back);
+        }
+        $locked = tl_login_record_failure($ip);
         usleep(400000);
         $error = '密码不正确。';
-    } else {
-        tl_redirect($back);
+    }
+    if ($locked > 0) {
+        http_response_code(429);
+        header('Retry-After: ' . $locked);
+        $error = sprintf('登录尝试过多，请在 %d 分 %d 秒后重试。', intdiv($locked, 60), $locked % 60);
     }
 }
 
-if (tl_admin()) {
+if ($error === null && tl_admin()) {
     tl_redirect($back);
 }
 
@@ -37,6 +47,7 @@ tl_view_head(['title' => cfg('app.name') . ' · 登录', 'scheme' => $scheme]);
 ?>
 <div class="tl-shell">
   <?php tl_topbar('login'); ?>
+  <?php tl_flash_view(); ?>
 
   <div class="tl-gate">
     <div class="tl-gate__art">
@@ -52,7 +63,7 @@ tl_view_head(['title' => cfg('app.name') . ' · 登录', 'scheme' => $scheme]);
 
         <div>
           <div class="tl-gate__label">口令</div>
-          <div class="tl-gate__kicker" style="margin-top:6px;color:var(--eds-text-tertiary)">PASSCODE</div>
+          <div class="tl-gate__kicker--caption tl-gate__kicker">PASSCODE</div>
         </div>
 
         <?php if ($error !== null): ?>

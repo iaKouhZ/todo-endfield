@@ -2125,3 +2125,29 @@ a { color: inherit; text-decoration: none; }
 /* <dialog> 默认 display:none，只有 open 时才画。不加 hidden，
    否则 showModal() 也救不回来——那正是这条规则存在的理由。 */
 .tl-dialog:not([open]) { display: none; }
+
+/* 原模板中的布局样式由同源样式表加载。 */
+.tl-col-check { width: 32px; }
+.tl-col-category { width: 104px; }
+.tl-col-deadline { width: 132px; }
+.tl-col-status { width: 76px; }
+.tl-col-task-actions { width: 56px; text-align: right; }
+.tl-text-dimmed { color: var(--eds-text-dimmed); }
+.tl-form-inline { margin: 0; display: inline; }
+.tl-bulk-static { position: static; }
+.tl-toolbar-flat { border-bottom: 0; }
+.tl-clear-compact { min-width: 32px; padding: 3px 8px; }
+.tl-push-right { margin-left: auto; }
+.tl-check-flex { display: flex; align-items: flex-start; gap: 8px; }
+.tl-note-spaced { margin-top: 6px; }
+.tl-col-count { width: 88px; }
+.tl-col-category-actions { width: 160px; text-align: right; }
+.tl-form-flush { margin: 0; }
+.tl-category-name-input { max-width: 220px; }
+.tl-gate__kicker--caption { margin-top: 6px; color: var(--eds-text-tertiary); }
+.tl-topbar__controls { display: flex; align-items: center; gap: 14px; }
+.tl-row__check--placeholder { visibility: hidden; }
+.tl-empty-title { font-size: var(--eds-text-lg); color: var(--eds-text-secondary); }
+.tl-empty-hint { font-size: var(--eds-text-sm); }
+.tl-detail-placeholder { font-size: var(--eds-text-md); color: var(--eds-text-secondary); }
+.tl-form-contents { margin: 0; display: contents; }

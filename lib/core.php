@@ -43,6 +43,7 @@ function tl_boot(): void
     if (PHP_SAPI !== 'cli' && !headers_sent()) {
         header('X-Content-Type-Options: nosniff');
         header('X-Frame-Options: DENY');
+        header("Content-Security-Policy: default-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'");
         header('Referrer-Policy: same-origin');
         header('Cache-Control: no-store, max-age=0');
         /* 必须在任何输出之前签发 CSRF cookie：它要随响应头下发。 */
@@ -437,11 +438,11 @@ function tl_db_migrate(PDO $pdo): void
             category_id     INTEGER REFERENCES categories(id) ON DELETE SET NULL,
             due_date        TEXT,
             due_time        TEXT,
-            status          TEXT    NOT NULL DEFAULT 'active',
-            repeat_unit     TEXT,
-            repeat_interval INTEGER,
-            tracked         INTEGER NOT NULL DEFAULT 0,
-            pinned          INTEGER NOT NULL DEFAULT 0,
+            status          TEXT    NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'planned', 'done')),
+            repeat_unit     TEXT CHECK (repeat_unit IS NULL OR repeat_unit IN ('day', 'week', 'month')),
+            repeat_interval INTEGER CHECK (repeat_interval IS NULL OR repeat_interval >= 1),
+            tracked         INTEGER NOT NULL DEFAULT 0 CHECK (tracked IN (0, 1)),
+            pinned          INTEGER NOT NULL DEFAULT 0 CHECK (pinned IN (0, 1)),
             completed_at    TEXT,
             created_at      TEXT    NOT NULL,
             updated_at      TEXT    NOT NULL
@@ -468,13 +469,24 @@ function tl_db_migrate(PDO $pdo): void
             title       TEXT    NOT NULL,
             due_date    TEXT,
             due_time    TEXT,
-            done        INTEGER NOT NULL DEFAULT 0,
+            done        INTEGER NOT NULL DEFAULT 0 CHECK (done IN (0, 1)),
             completed_at TEXT,
             position    INTEGER NOT NULL DEFAULT 0,
             created_at  TEXT    NOT NULL,
             updated_at  TEXT    NOT NULL
         );
         CREATE INDEX IF NOT EXISTS idx_task_subitems_task ON task_subitems(task_id, position, id);
+        CREATE TABLE IF NOT EXISTS login_attempts (
+            ip           TEXT PRIMARY KEY,
+            failures     INTEGER NOT NULL DEFAULT 0,
+            locked_until TEXT,
+            updated_at   TEXT NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS app_meta (
+            key   TEXT PRIMARY KEY,
+            value TEXT NOT NULL
+        );
+        INSERT OR IGNORE INTO app_meta (key, value) VALUES ('session_version', '1');
     SQL);
 
     $now = tl_now()->format('Y-m-d H:i:s');
@@ -518,16 +530,95 @@ function tl_auth_ttl(string $role): int
     return (int) cfg($role === 'admin' ? 'cookie.admin_ttl' : 'cookie.front_ttl', 3600);
 }
 
+function tl_client_ip(): string
+{
+    return (string) ($_SERVER['REMOTE_ADDR'] ?? 'unknown');
+}
+
+function tl_login_locked_seconds(string $ip): int
+{
+    $stmt = db()->prepare('SELECT locked_until FROM login_attempts WHERE ip = ?');
+    $stmt->execute([$ip]);
+    $until = $stmt->fetchColumn();
+    return is_string($until) ? max(0, (new DateTimeImmutable($until, tl_tz()))->getTimestamp() - tl_now()->getTimestamp()) : 0;
+}
+
+function tl_login_record_failure(string $ip): int
+{
+    $now = tl_now();
+    $minutes = max(1, (int) cfg('auth.lock_minutes', 15));
+    $limit = max(1, (int) cfg('auth.max_attempts', 5));
+    $stamp = $now->format('Y-m-d H:i:s');
+    $cutoff = $now->modify("-$minutes minutes")->format('Y-m-d H:i:s');
+    $until = $now->modify("+$minutes minutes")->format('Y-m-d H:i:s');
+    $stmt = db()->prepare(<<<'SQL'
+        INSERT INTO login_attempts (ip, failures, locked_until, updated_at)
+        VALUES (:ip, 1, CASE WHEN :limit <= 1 THEN :until END, :stamp)
+        ON CONFLICT(ip) DO UPDATE SET
+            failures = CASE
+                WHEN locked_until IS NOT NULL OR updated_at <= :cutoff THEN 1
+                ELSE failures + 1
+            END,
+            locked_until = CASE
+                WHEN (CASE WHEN locked_until IS NOT NULL OR updated_at <= :cutoff THEN 1 ELSE failures + 1 END) >= :limit
+                THEN :until
+            END,
+            updated_at = :stamp
+        WHERE locked_until IS NULL OR locked_until <= :stamp
+    SQL);
+    $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
+    foreach (['ip' => $ip, 'stamp' => $stamp, 'cutoff' => $cutoff, 'until' => $until] as $key => $value) {
+        $stmt->bindValue(':' . $key, $value);
+    }
+    $stmt->execute();
+    return tl_login_locked_seconds($ip);
+}
+
+function tl_login_clear_failures(string $ip): void
+{
+    $now = tl_now();
+    $minutes = max(1, (int) cfg('auth.lock_minutes', 15));
+    db()->prepare('DELETE FROM login_attempts WHERE ip = ? OR (locked_until <= ?) OR
+        (locked_until IS NULL AND updated_at <= ?)')->execute([
+        $ip, $now->format('Y-m-d H:i:s'), $now->modify("-$minutes minutes")->format('Y-m-d H:i:s'),
+    ]);
+}
+
+function tl_session_version(bool $reload = false): string
+{
+    static $version = null;
+    if ($version === null || $reload) {
+        $version = (string) (db()->query("SELECT value FROM app_meta WHERE key = 'session_version'")->fetchColumn() ?: '1');
+    }
+    return $version;
+}
+
+function tl_session_bump_version(): string
+{
+    $pdo = db();
+    $pdo->beginTransaction();
+    try {
+        $pdo->exec("UPDATE app_meta SET value = CAST(value AS INTEGER) + 1 WHERE key = 'session_version'");
+        $version = tl_session_version(true);
+        $pdo->commit();
+        return $version;
+    } catch (Throwable $e) {
+        $pdo->rollBack();
+        tl_session_version(true);
+        throw $e;
+    }
+}
+
 function tl_auth_sign(string $role, int $expires): string
 {
     $password = tl_auth_password($role);
-    $material = $role . '|' . $expires . '|' . hash('sha256', $password);
+    $material = $role . '|' . $expires . '|' . tl_session_version() . '|' . hash('sha256', $password);
     return hash_hmac('sha256', $material, (string) cfg('cookie.secret'));
 }
 
 function tl_auth_issue(string $role): void
 {
-    $expires = time() + tl_auth_ttl($role);
+    $expires = tl_now()->getTimestamp() + tl_auth_ttl($role);
     $value = $expires . '.' . tl_auth_sign($role, $expires);
     setcookie(tl_auth_cookie($role), $value, tl_cookie_options($expires));
     $_COOKIE[tl_auth_cookie($role)] = $value;
@@ -535,7 +626,7 @@ function tl_auth_issue(string $role): void
 
 function tl_auth_clear(string $role): void
 {
-    setcookie(tl_auth_cookie($role), '', tl_cookie_options(time() - 3600));
+    setcookie(tl_auth_cookie($role), '', tl_cookie_options(tl_now()->getTimestamp() - 3600));
     unset($_COOKIE[tl_auth_cookie($role)]);
 }
 
@@ -553,7 +644,7 @@ function tl_auth_valid(string $role): bool
         return false;
     }
     $expires = (int) $expiresRaw;
-    if ($expires < time()) {
+    if ($expires < tl_now()->getTimestamp()) {
         return false;
     }
     return hash_equals(tl_auth_sign($role, $expires), $signature);
