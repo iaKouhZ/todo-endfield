@@ -487,11 +487,13 @@ function tl_detail_view(?array $entry, bool $admin, string $backUrl = '', string
               <?php endif; ?>
               <div class="tl-detail__subtitle">
                 <span class="<?= $sdone ? 'tl-detail__subtitle--done' : '' ?>"><?= e($sub['title']) ?></span>
-                <?php if ($subCompletedAt !== null): ?>
-                  <span class="tl-detail__subdue"><?= e(tl_completion_label($sub, $sub['due_date'], $subCompletedAt)) ?></span>
+                <?php if ($sdone): ?>
+                  <?php if ($subCompletedAt !== null): ?>
+                    <span class="tl-detail__subdue"><?= e(tl_completion_label($sub, $sub['due_date'], $subCompletedAt)) ?></span>
+                  <?php endif; ?>
                   <?php if ($admin): ?>
                     <details class="tl-detail__subcompletion">
-                      <summary><?= $sub['due_date'] === null ? '修改完成时间' : '完成时间 ' . e(substr($subCompletedAt, 0, 16)) ?></summary>
+                      <summary><?= $subCompletedAt === null || $sub['due_date'] === null ? '修改完成时间' : '完成时间 ' . e(substr($subCompletedAt, 0, 16)) ?></summary>
                       <form method="post" action="<?= e(tl_action_url()) ?>" class="tl-detail__subadd">
                         <?= tl_csrf_field() ?>
                         <input type="hidden" name="op" value="subitem_done">
@@ -503,7 +505,7 @@ function tl_detail_view(?array $entry, bool $admin, string $backUrl = '', string
                         <button class="tl-action eds-button" type="submit">保存完成时间</button>
                       </form>
                     </details>
-                  <?php elseif ($sub['due_date'] !== null): ?>
+                  <?php elseif ($subCompletedAt !== null && $sub['due_date'] !== null): ?>
                     <span class="tl-detail__subdue">完成时间 <?= e(substr($subCompletedAt, 0, 16)) ?></span>
                   <?php endif; ?>
                 <?php elseif ($sub['due_date'] !== null): ?>

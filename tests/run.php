@@ -224,6 +224,8 @@ $test['重复任务代表条目跳过已完成的发生'] = static function (): 
 $test['子任务默认继承主任务完成时间且不能晚于主任务'] = static function (): void {
     $id = tl_task_create(['title' => '主任务完成时间']);
     $child = tl_subitem_add($id, '子任务');
+    tl_subitem_set_done($child, $id, true);
+    same(null, tl_task_subitems($id)[0]['own_completed_at']);
     tl_task_set_status($id, 'done', '2026-03-20 10:00:29');
     same(null, tl_task_subitems($id)[0]['own_completed_at']);
     same('2026-03-20 10:00:29', tl_task_subitems($id)[0]['effective_completed_at']);

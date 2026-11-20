@@ -612,7 +612,7 @@ function tl_subitem_set_done(int $subId, int $taskId, bool $done, ?string $compl
     }
     tl_validate_subitem_completion($completedAt, $parentDone ? $parent['completed_at'] : null);
     $now = tl_now()->format('Y-m-d H:i:s');
-    $value = $done ? ($editingCompletion && $parentDone ? $completedAt : ($completedAt ?? $old ?? $now)) : null;
+    $value = $done ? ($editingCompletion && $parentDone ? $completedAt : ($completedAt ?? $old)) : null;
     db()->prepare('UPDATE task_subitems SET done = ?, completed_at = ?, updated_at = ? WHERE id = ? AND task_id = ?')
         ->execute([(int) $done, $value, $now, $subId, $taskId]);
 }
@@ -630,7 +630,6 @@ function tl_subitems_save_rows(int $taskId, array $rows, ?array $beforeParentEdi
     $pdo = db();
     $now = tl_now()->format('Y-m-d H:i:s');
     $parentDone = $task['status'] === 'done';
-    $defaultCompletion = $parentDone ? null : $now;
     $previous = array_column(tl_task_subitems($taskId), 'own_completed_at', 'id');
     $keep = [];
     $pos = 0;
@@ -651,7 +650,7 @@ function tl_subitems_save_rows(int $taskId, array $rows, ?array $beforeParentEdi
         }
         tl_validate_subitem_completion($completedAt, $parentDone ? $task['completed_at'] : null);
         if ($done && $completedAt === null && (!$parentDone || !array_key_exists('completed_at', $row))) {
-            $completedAt = $old ?? $defaultCompletion;
+            $completedAt = $old;
         }
         $pos += 10;
         if ($id > 0) {
