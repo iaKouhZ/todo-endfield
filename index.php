@@ -166,7 +166,7 @@ tl_view_head(['title' => cfg('app.name') . ' · 任务看板', 'scheme' => $sche
              placeholder="摘要 / 详情 / 分类" autocomplete="off">
     </label>
 
-    <button class="eds-button" type="submit">筛选</button>
+    <button class="tl-action eds-button" type="submit">筛选</button>
     <?php if ($categoryId !== null || $query !== ''): ?>
       <a class="tl-clear" href="<?= e(tl_front_url(['tab' => $tab])) ?>">清除条件</a>
     <?php endif; ?>

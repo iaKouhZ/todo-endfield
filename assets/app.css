@@ -214,6 +214,24 @@ a { color: inherit; text-decoration: none; }
 
 .tl-ghostlink:hover { color: var(--eds-status-error-text); }
 
+.eds-square .tl-action {
+  box-sizing: border-box;
+  min-height: 36px;
+  border-radius: var(--eds-radius-pill);
+  corner-shape: round;
+}
+
+.tl-action--delete {
+  width: 36px;
+  padding: 0;
+  border-color: transparent;
+  color: var(--eds-status-error-text);
+  font-size: var(--eds-text-lg);
+  line-height: 1;
+}
+
+.tl-action--delete:hover:not(:disabled) { border-color: currentColor; }
+
 /* 窄屏折叠开关：桌面端一律隐藏，只在 ≤980px 的媒体查询里打开。 */
 .tl-mobile-toggle { display: none; }
 
@@ -938,10 +956,6 @@ a { color: inherit; text-decoration: none; }
   flex: none;
 }
 
-.tl-detail__subdel .tl-ghostlink {
-  font-size: var(--eds-text-3xs);
-}
-
 .tl-detail__subadd {
   display: flex;
   flex-wrap: wrap;
@@ -1048,13 +1062,6 @@ a { color: inherit; text-decoration: none; }
 }
 
 .tl-detail__guest a { color: var(--eds-accent-text); border-bottom: 1px solid var(--eds-wash-edge); }
-
-/* 详情内的按钮更紧凑：密集排布于右下角 */
-.tl-detail__actions .eds-button {
-  min-height: 27px;
-  padding: 3px 10px;
-  font-size: var(--eds-text-sm);
-}
 
 .tl-detail__close { display: none; }
 
@@ -1296,7 +1303,6 @@ a { color: inherit; text-decoration: none; }
 }
 
 .tl-form__actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding-top: 2px; }
-.tl-form__actions > .eds-button { box-sizing: border-box; min-height: 34px; }
 .tl-form__actions .tl-form__hint { margin-left: auto; font-size: var(--eds-text-3xs); color: var(--eds-text-tertiary); }
 
 /* 追踪开关：显示当前状态文字，不让人靠滑块位置猜。 */
@@ -1414,7 +1420,7 @@ a { color: inherit; text-decoration: none; }
 .tl-table__num { font-variant-numeric: tabular-nums; white-space: nowrap; }
 
 /* 整行是编辑入口：点行内任意位置都进右侧表单，和前台点行进详情一致。
-   复选框与「删」是独立元素，各自挂在批量表单 / 删除表单上，不参与行链接。 */
+   复选框与删除按钮各自挂在批量表单 / 删除表单上，不参与行链接。 */
 .tl-table__link {
   display: block;
   color: inherit;
@@ -1426,29 +1432,7 @@ a { color: inherit; text-decoration: none; }
 .tl-table__row--selected td { box-shadow: inset 0 0 0 1px var(--eds-accent); }
 .tl-table__row--selected td:first-child { box-shadow: inset 1px 0 0 var(--eds-accent); }
 
-.tl-table__actions { display: flex; justify-content: flex-end; gap: 4px; white-space: nowrap; }
-.tl-table__actions a,
-.tl-table__actions button {
-  border: var(--eds-line-weight) solid var(--eds-line-strong);
-  background: transparent;
-  color: var(--eds-text-primary);
-  font-family: var(--eds-font);
-  font-size: var(--eds-text-2xs);
-  padding: 2px 7px;
-  cursor: pointer;
-}
-.tl-table__actions a:hover,
-.tl-table__actions button:hover { background: var(--eds-wash-hover); border-color: var(--eds-line-contrast); }
-.tl-table__actions .tl-danger {
-  color: var(--eds-status-error-text);
-  border-color: transparent;
-  background: transparent;
-  min-width: 36px;
-  min-height: 36px;
-  font-size: var(--eds-text-lg);
-  line-height: 1;
-}
-.tl-table__actions .tl-danger:hover { background: var(--eds-status-error); color: var(--eds-text-inverse); }
+.tl-table__actions { display: flex; align-items: center; justify-content: flex-end; gap: 4px; white-space: nowrap; }
 
 .tl-table__check { appearance: none; width: 14px; height: 14px; margin: 0; border: 1px solid var(--eds-line-contrast); background: var(--eds-surface-raised); cursor: pointer; position: relative; }
 .tl-table__check:checked { background: var(--eds-accent); border-color: var(--eds-accent); }

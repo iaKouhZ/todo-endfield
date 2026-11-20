@@ -78,7 +78,8 @@ function tl_admin_empty_subitem_row(): void
       <span class="tl-subitems-done tl-subitems-done--spacer" aria-hidden="true"></span>
       <input class="tl-form__input" type="text" name="subitem_title[0]" maxlength="200" placeholder="可选子任务">
       <?php tl_subitem_deadline_fields([], 0); ?>
-      <button class="tl-ghostlink" type="button" data-subitem-remove>移除</button>
+      <button class="tl-action tl-action--delete eds-button" type="button" aria-label="移除子任务行"
+              data-subitem-remove><span aria-hidden="true">✕</span></button>
     </div>
     <?php
 }
@@ -123,7 +124,7 @@ function tl_admin_render_tasks(array $data): void
               <option value="1" <?= $trackedOnly ? 'selected' : '' ?>>仅追踪中</option>
             </select>
           </label>
-          <button class="eds-button" type="submit">筛选</button>
+          <button class="tl-action eds-button" type="submit">筛选</button>
           <span class="tl-toolbar__spacer"></span>
           <span class="tl-filter-note">
             共 <strong><?= $totalTasks ?></strong> 条<?= $pages > 1 ? ' · 第 ' . $page . '/' . $pages . ' 页' : '' ?>
@@ -198,7 +199,7 @@ function tl_admin_render_tasks(array $data): void
                         <input type="hidden" name="op" value="task_delete">
                         <input type="hidden" name="id" value="<?= $id ?>">
                         <input type="hidden" name="back" value="<?= e($backUrl) ?>">
-                        <button class="tl-danger" type="submit" aria-label="删除待办：<?= e($task['title']) ?>"
+                        <button class="tl-action tl-action--delete eds-button" type="submit" aria-label="删除待办：<?= e($task['title']) ?>"
                                 data-confirm="删除「<?= e($task['title']) ?>」？此操作不可撤销。"
                                 data-confirm-title="删除待办"><span aria-hidden="true">✕</span></button>
                       </form>
@@ -216,10 +217,10 @@ function tl_admin_render_tasks(array $data): void
           <input type="hidden" name="back" value="<?= e($backUrl) ?>">
           <div class="tl-bulk-static tl-bulk" <?= $pageTasks === [] ? 'hidden' : '' ?> data-admin-bulk>
             <span class="tl-bulk__count">已选 <strong data-admin-count>0</strong> 项</span>
-            <button class="eds-button" type="submit" name="bulk_op" value="status:active">设为进行中</button>
-            <button class="eds-button" type="submit" name="bulk_op" value="status:planned">设为规划中</button>
-            <button class="eds-button eds-button--solid" type="submit" name="bulk_op" value="status:done">设为已完成（重复任务整串）</button>
-            <button class="eds-button eds-button--danger" type="submit" name="bulk_op" value="delete"
+            <button class="tl-action eds-button" type="submit" name="bulk_op" value="status:active">设为进行中</button>
+            <button class="tl-action eds-button" type="submit" name="bulk_op" value="status:planned">设为规划中</button>
+            <button class="tl-action eds-button eds-button--solid" type="submit" name="bulk_op" value="status:done">设为已完成（重复任务整串）</button>
+            <button class="tl-action eds-button eds-button--danger" type="submit" name="bulk_op" value="delete"
                     data-confirm="删除选中的待办？此操作不可撤销。" data-confirm-title="批量删除">删除选中</button>
           </div>
         </form>
@@ -235,7 +236,7 @@ function tl_admin_render_tasks(array $data): void
             ], fn ($v) => $v !== null);
             ?>
             <?php for ($p = 1; $p <= $pages; $p++): ?>
-              <a class="tl-clear-compact eds-button <?= $p === $page ? 'eds-button--solid' : '' ?>"
+              <a class="tl-action tl-clear-compact eds-button <?= $p === $page ? 'eds-button--solid' : '' ?>"
                  href="<?= e(tl_admin_url($baseQuery + ['view' => 'tasks', 'page' => $p])) ?>"><?= $p ?></a>
             <?php endfor; ?>
           </div>
@@ -371,7 +372,8 @@ function tl_admin_render_tasks(array $data): void
                       <input class="tl-form__input" type="text" name="subitem_title[<?= (int) $idx ?>]" maxlength="200" value="<?= e((string) $sub['title']) ?>"
                              <?= $editTask['status'] === 'done' ? 'readonly' : '' ?>>
                       <?php tl_subitem_deadline_fields($sub, $idx, $editTask['status'] === 'done'); ?>
-                      <button class="tl-ghostlink" type="button" data-subitem-remove>移除</button>
+                      <button class="tl-action tl-action--delete eds-button" type="button" aria-label="移除子任务：<?= e($sub['title']) ?>"
+                              data-subitem-remove><span aria-hidden="true">✕</span></button>
                     </div>
                   <?php endforeach; ?>
                   <?php if ($editSubitems === [] && $editTask['status'] !== 'done'): ?>
@@ -379,13 +381,13 @@ function tl_admin_render_tasks(array $data): void
                   <?php endif; ?>
                 </div>
                 <?php if ($editTask['status'] !== 'done'): ?>
-                  <button type="button" class="eds-button tl-subitems-add" data-subitem-add-row data-subitem-editor="subitems-editor">添加子任务行</button>
+                  <button type="button" class="tl-action eds-button tl-subitems-add" data-subitem-add-row data-subitem-editor="subitems-editor">添加子任务行</button>
                 <?php endif; ?>
               </div>
 
               <div class="tl-form__actions">
-                <button class="eds-button eds-button--solid" type="submit">保存修改</button>
-                <a class="eds-button" href="<?= e($returnUrl ?? $listUrl) ?>">取消</a>
+                <button class="tl-action eds-button eds-button--solid" type="submit">保存修改</button>
+                <a class="tl-action eds-button" href="<?= e($returnUrl ?? $listUrl) ?>">取消</a>
               </div>
             </div>
           </form>
@@ -478,11 +480,11 @@ function tl_admin_render_tasks(array $data): void
                 <div class="tl-subitems-editor" id="subitems-editor-new" data-subitems-editor>
                   <?php tl_admin_empty_subitem_row(); ?>
                 </div>
-                <button type="button" class="eds-button tl-subitems-add" data-subitem-add-row data-subitem-editor="subitems-editor-new">添加子任务行</button>
+                <button type="button" class="tl-action eds-button tl-subitems-add" data-subitem-add-row data-subitem-editor="subitems-editor-new">添加子任务行</button>
               </div>
 
               <div class="tl-form__actions">
-                <button class="eds-button eds-button--solid" type="submit">添加待办</button>
+                <button class="tl-action eds-button eds-button--solid" type="submit">添加待办</button>
 
               </div>
             </div>
@@ -513,7 +515,7 @@ function tl_admin_render_tasks(array $data): void
             <?= tl_csrf_field() ?>
             <input type="hidden" name="op" value="purge">
             <input type="hidden" name="back" value="<?= e($backUrl) ?>">
-            <button class="eds-button eds-button--danger" type="submit"
+            <button class="tl-action eds-button eds-button--danger" type="submit"
                     data-confirm="清除所有完成超过 <?= (int) cfg('purge_days', 7) ?> 天的待办？此操作不可撤销。"
                     data-confirm-title="清除已完成">执行清理</button>
           </form>
@@ -557,18 +559,18 @@ function tl_admin_render_categories(array $data): void
                       <input type="hidden" name="back" value="<?= e(tl_admin_url(['view' => 'categories'])) ?>">
                       <input class="tl-category-name-input tl-input" type="text" name="name" value="<?= e($category['name']) ?>"
                              maxlength="24" aria-label="分类名称">
-                      <button class="eds-button" type="submit">重命名</button>
+                      <button class="tl-action eds-button" type="submit">重命名</button>
                     </form>
                   </td>
                   <td class="tl-table__num"><?= (int) $category['task_count'] ?></td>
                   <td>
                     <div class="tl-table__actions">
-                      <a href="<?= e(tl_admin_url(['view' => 'tasks', 'cat' => (int) $category['id']])) ?>">查看</a>
-                      <a href="#" data-open-cat-delete
-                         data-cat-id="<?= (int) $category['id'] ?>"
-                         data-cat-name="<?= e($category['name']) ?>"
-                         data-cat-count="<?= (int) $category['task_count'] ?>"
-                         data-cat-action="delete-category">删除</a>
+                      <a class="tl-action eds-button" href="<?= e(tl_admin_url(['view' => 'tasks', 'cat' => (int) $category['id']])) ?>">查看</a>
+                      <button class="tl-action tl-action--delete eds-button" type="button" data-open-cat-delete
+                              aria-label="删除分类：<?= e($category['name']) ?>"
+                              data-cat-id="<?= (int) $category['id'] ?>"
+                              data-cat-name="<?= e($category['name']) ?>"
+                              data-cat-count="<?= (int) $category['task_count'] ?>"><span aria-hidden="true">✕</span></button>
                     </div>
                   </td>
                 </tr>
@@ -593,7 +595,7 @@ function tl_admin_render_categories(array $data): void
               <input class="tl-form__input" id="c-name" type="text" name="name" maxlength="24" required placeholder="例如：科研 / 健身">
             </div>
             <div class="tl-form__actions">
-              <button class="eds-button eds-button--solid" type="submit">添加分类</button>
+              <button class="tl-action eds-button eds-button--solid" type="submit">添加分类</button>
             </div>
           </div>
         </form>
@@ -687,8 +689,8 @@ function tl_admin_render_system(array $data): void
           <form method="post" action="<?= e(tl_action_url()) ?>" data-no-pjax>
             <?= tl_csrf_field() ?>
             <input type="hidden" name="op" value="export">
-            <button class="eds-button" type="submit" name="format" value="json">导出 JSON</button>
-            <button class="eds-button" type="submit" name="format" value="sqlite">导出 SQLite</button>
+            <button class="tl-action eds-button" type="submit" name="format" value="json">导出 JSON</button>
+            <button class="tl-action eds-button" type="submit" name="format" value="sqlite">导出 SQLite</button>
           </form>
           <form method="post" action="<?= e(tl_action_url()) ?>" enctype="multipart/form-data" data-no-pjax>
             <?= tl_csrf_field() ?>
@@ -698,7 +700,7 @@ function tl_admin_render_system(array $data): void
               <span class="tl-field__label">JSON 备份文件（最多 10 MB）</span>
               <input type="file" name="backup" accept=".json,application/json" required>
             </label>
-            <button class="eds-button eds-button--danger" type="submit"
+            <button class="tl-action eds-button eds-button--danger" type="submit"
                     data-confirm="导入备份将覆盖当前的分类、待办和完成记录。"
                     data-confirm-title="覆盖导入">导入 JSON 备份</button>
           </form>
@@ -713,7 +715,7 @@ function tl_admin_render_system(array $data): void
             <?= tl_csrf_field() ?>
             <input type="hidden" name="op" value="purge">
             <input type="hidden" name="back" value="<?= e(tl_admin_url(['view' => 'system'])) ?>">
-            <button class="eds-button eds-button--danger" type="submit"
+            <button class="tl-action eds-button eds-button--danger" type="submit"
                     data-confirm="清除完成超过 <?= (int) cfg('purge_days') ?> 天的待办？此操作不可撤销。"
                     data-confirm-title="清除已完成">执行清理</button>
           </form>
@@ -726,7 +728,7 @@ function tl_admin_render_system(array $data): void
           <form method="post" action="<?= e(tl_action_url()) ?>" data-no-pjax>
             <?= tl_csrf_field() ?>
             <input type="hidden" name="op" value="revoke_sessions">
-            <button class="eds-button eds-button--danger" type="submit"
+            <button class="tl-action eds-button eds-button--danger" type="submit"
                     data-confirm="注销所有设备上的网页会话？"
                     data-confirm-title="注销全部设备">注销全部设备</button>
           </form>
@@ -735,7 +737,7 @@ function tl_admin_render_system(array $data): void
             <?= tl_csrf_field() ?>
             <input type="hidden" name="role" value="admin">
             <input type="hidden" name="back" value="<?= e(tl_front_url()) ?>">
-            <button class="eds-button" type="submit">退出后台</button>
+            <button class="tl-action eds-button" type="submit">退出后台</button>
           </form>
         </div>
       </aside>

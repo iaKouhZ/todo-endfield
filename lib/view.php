@@ -449,7 +449,7 @@ function tl_detail_view(?array $entry, bool $admin, string $backUrl = '', string
         <input type="hidden" name="date" value="<?= e($date ?? '') ?>">
         <input type="hidden" name="back" value="<?= e($_SERVER['REQUEST_URI'] ?? tl_front_url()) ?>">
         <?php tl_completion_field($completedAt, true); ?>
-        <button class="eds-button" type="submit">保存完成时间</button>
+        <button class="tl-action eds-button" type="submit">保存完成时间</button>
       </form>
     <?php elseif ($completedAt !== null && $date !== null): ?>
       <p class="tl-detail__subnote">完成时间 <?= e(substr($completedAt, 0, 16)) ?></p>
@@ -496,7 +496,7 @@ function tl_detail_view(?array $entry, bool $admin, string $backUrl = '', string
                         <input type="hidden" name="subitem_id" value="<?= $sid ?>">
                         <input type="hidden" name="back" value="<?= e($subBack) ?>">
                         <?php tl_completion_field($subCompletedAt, true); ?>
-                        <button class="eds-capsule eds-capsule--accent" type="submit">保存完成时间</button>
+                        <button class="tl-action eds-button" type="submit">保存完成时间</button>
                       </form>
                     </details>
                   <?php elseif ($sub['due_date'] !== null): ?>
@@ -513,7 +513,8 @@ function tl_detail_view(?array $entry, bool $admin, string $backUrl = '', string
                   <input type="hidden" name="task_id" value="<?= $id ?>">
                   <input type="hidden" name="subitem_id" value="<?= $sid ?>">
                   <input type="hidden" name="back" value="<?= e($subBack) ?>">
-                  <button type="submit" class="tl-ghostlink" data-confirm="删除这条子任务？" data-confirm-title="删除子任务">删</button>
+                  <button class="tl-action tl-action--delete eds-button" type="submit" aria-label="删除子任务：<?= e($sub['title']) ?>"
+                          data-confirm="删除这条子任务？" data-confirm-title="删除子任务"><span aria-hidden="true">✕</span></button>
                 </form>
               <?php endif; ?>
             </li>
@@ -526,7 +527,7 @@ function tl_detail_view(?array $entry, bool $admin, string $backUrl = '', string
             <input type="hidden" name="task_id" value="<?= $id ?>">
             <input type="hidden" name="back" value="<?= e($subBack) ?>">
             <input class="tl-detail__subinput" type="text" name="title" maxlength="200" placeholder="添加子任务…" required>
-            <button class="eds-button" type="submit">添加</button>
+            <button class="tl-action eds-button" type="submit">添加</button>
             <?php tl_subitem_deadline_fields(); ?>
           </form>
         <?php elseif ($status === 'done' && $subitems !== []): ?>
@@ -547,7 +548,7 @@ function tl_detail_view(?array $entry, bool $admin, string $backUrl = '', string
           <input type="hidden" name="date" value="<?= e($date ?? '') ?>">
           <input type="hidden" name="done" value="<?= $isDoneNow ? '0' : '1' ?>">
           <input type="hidden" name="back" value="<?= e($_SERVER['REQUEST_URI'] ?? tl_front_url()) ?>">
-          <button class="eds-button <?= $isDoneNow ? '' : 'eds-button--solid' ?>" type="submit">
+          <button class="tl-action eds-button <?= $isDoneNow ? '' : 'eds-button--solid' ?>" type="submit">
             <?= $markAction === 'occurrence' ? ($isDoneNow ? '撤销本次完成' : '完成本次') : ($isDoneNow ? '标记为未完成' : '标记为完成') ?>
           </button>
         </form>
@@ -557,7 +558,7 @@ function tl_detail_view(?array $entry, bool $admin, string $backUrl = '', string
           <input type="hidden" name="id" value="<?= $id ?>">
           <input type="hidden" name="tracked" value="<?= $tracked ? '0' : '1' ?>">
           <input type="hidden" name="back" value="<?= e($_SERVER['REQUEST_URI'] ?? tl_front_url()) ?>">
-          <button class="eds-button" type="submit"><?= $tracked ? '移除追踪' : '添加追踪' ?></button>
+          <button class="tl-action eds-button" type="submit"><?= $tracked ? '移除追踪' : '添加追踪' ?></button>
         </form>
         <form class="tl-form-contents" method="post" action="<?= e(tl_action_url()) ?>">
           <?= tl_csrf_field() ?>
@@ -565,9 +566,9 @@ function tl_detail_view(?array $entry, bool $admin, string $backUrl = '', string
           <input type="hidden" name="id" value="<?= $id ?>">
           <input type="hidden" name="pinned" value="<?= $pinned ? '0' : '1' ?>">
           <input type="hidden" name="back" value="<?= e($_SERVER['REQUEST_URI'] ?? tl_front_url()) ?>">
-          <button class="eds-button" type="submit"><?= $pinned ? '取消置顶' : '置顶' ?></button>
+          <button class="tl-action eds-button" type="submit"><?= $pinned ? '取消置顶' : '置顶' ?></button>
         </form>
-        <a class="eds-button" href="<?= e($editUrl) ?>">编辑任务</a>
+        <a class="tl-action eds-button" href="<?= e($editUrl) ?>">编辑任务</a>
       </div>
     <?php else: ?>
       <div class="tl-detail__guest">
