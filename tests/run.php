@@ -259,27 +259,66 @@ $test['子任务继承主任务截止日期和时间并校验上限'] = static f
     same('2026-03-21', $feed['due_subitems'][$series][0]['due_date']);
     same('15:00', $feed['due_subitems'][$series][0]['due_time']);
 };
-$test['子任务独立完成记录当前时间，随主任务完成时继承时间'] = static function (): void {
-    $id = tl_task_create(['title' => '主任务完成时间']);
+$test['主任务完成与恢复保留子任务自己的勾选和时间'] = static function (): void {
+    $id = tl_task_create([
+        'title' => '主任务完成时间', 'due_date' => '2026-03-20', 'repeat_unit' => 'day', 'repeat_interval' => 1,
+    ]);
     $standalone = tl_subitem_add($id, '独立完成');
     $inherited = tl_subitem_add($id, '随主任务完成');
     tl_subitem_set_done($standalone, $id, true);
-    same('2026-03-20 12:00:00', array_column(tl_task_subitems($id), 'own_completed_at', 'id')[$standalone]);
-    $edit = tl_task_create(['title' => '编辑表单内勾选']);
-    tl_subitems_save_rows($edit, [['id' => 0, 'title' => '新行', 'done' => true]]);
-    same('2026-03-20 12:00:00', tl_task_subitems($edit)[0]['own_completed_at']);
+    $read = static fn (): array => array_column(tl_task_subitems($id), null, 'id');
+    same('2026-03-20 12:00:00', $read()[$standalone]['own_completed_at']);
+    $before = tl_backup_export_json()['task_subitems'];
+
+    tl_complete_occurrence($id, '2026-03-20', true);
+    same(0, (int) $read()[$inherited]['effective_done']);
+    same($before, tl_backup_export_json()['task_subitems']);
 
     tl_task_set_status($id, 'done', '2026-03-20 10:00:29');
-    $rows = array_column(tl_task_subitems($id), null, 'id');
+    $rows = $read();
+    same(1, (int) $rows[$standalone]['effective_done']);
     same('2026-03-20 12:00:00', $rows[$standalone]['effective_completed_at']);
-    same(1, (int) $rows[$inherited]['done']);
+    same(0, (int) $rows[$inherited]['done']);
+    same(1, (int) $rows[$inherited]['effective_done']);
     same(null, $rows[$inherited]['own_completed_at']);
     same('2026-03-20 10:00:29', $rows[$inherited]['effective_completed_at']);
-    tl_subitem_set_done($inherited, $id, true, '2026-03-20 10:01:00');
-    same('2026-03-20 10:01:00', array_column(tl_task_subitems($id), 'effective_completed_at', 'id')[$inherited]);
-    tl_subitem_set_done($inherited, $id, true, null, true);
+    same($before, tl_backup_export_json()['task_subitems']);
+
+    rejects(static fn () => tl_subitem_set_done($inherited, $id, true, '2026-03-20 10:01:00'), InvalidArgumentException::class);
+    rejects(static fn () => tl_subitem_set_done($standalone, $id, false), InvalidArgumentException::class);
+    tl_subitem_set_done($standalone, $id, true, '2026-03-20 11:55:27');
+    tl_subitem_set_done($standalone, $id, true, '2026-03-20 11:55:00');
     tl_task_set_status($id, 'done', '2026-03-20 11:00:00');
-    same('2026-03-20 11:00:00', array_column(tl_task_subitems($id), 'effective_completed_at', 'id')[$inherited]);
+    same('2026-03-20 11:00:00', $read()[$inherited]['effective_completed_at']);
+    tl_tasks_set_status([$id], 'planned');
+    $rows = $read();
+    same(1, (int) $rows[$standalone]['effective_done']);
+    same('2026-03-20 11:55:27', $rows[$standalone]['effective_completed_at']);
+    same(0, (int) $rows[$inherited]['effective_done']);
+    same(null, $rows[$inherited]['effective_completed_at']);
+};
+$test['后台保存时区分禁用的子任务勾选框和显式提交的勾选'] = static function (): void {
+    $id = tl_task_create(['title' => '后台编辑状态']);
+    $standalone = tl_subitem_add($id, '独立完成');
+    $inherited = tl_subitem_add($id, '随主任务完成');
+    $rows = [
+        ['id' => $standalone, 'title' => '独立完成', 'done' => true],
+        ['id' => $inherited, 'title' => '随主任务完成'],
+        ['id' => 0, 'title' => '整表新行', 'done' => true],
+        ['id' => 0, 'title' => '新增未完成'],
+    ];
+    tl_subitems_save_rows($id, $rows);
+    $read = static fn (): array => array_column(tl_task_subitems($id), null, 'title');
+    same('2026-03-20 12:00:00', $read()['整表新行']['own_completed_at']);
+    same(0, (int) $read()['新增未完成']['done']);
+    tl_tasks_set_status([$id], 'done');
+    $rows = array_map(static fn (array $row): array => ['id' => $row['id'], 'title' => $row['title']], array_values($read()));
+    tl_subitems_save_rows($id, $rows);
+    same([1, 0, 1, 0], array_map(static fn (array $row): int => (int) $row['done'], array_values($read())));
+    $previous = tl_task_update($id, ['title' => '后台编辑状态', 'status' => 'active']);
+    tl_subitems_save_rows($id, $rows, preserveDoneState: $previous === 'done');
+    same([1, 0, 1, 0], array_map(static fn (array $row): int => (int) $row['effective_done'], array_values($read())));
+    same('2026-03-20 12:00:00', $read()['独立完成']['effective_completed_at']);
 };
 $test['清理、范围裁剪及备份往返'] = static function (): void {
     $task = tl_task_create([

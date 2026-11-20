@@ -363,7 +363,7 @@ function tl_admin_render_tasks(array $data): void
                       <input type="hidden" name="subitem_id[<?= (int) $idx ?>]" value="<?= $subRowId ?>">
                       <?php if ($subRowId > 0): ?>
                         <label class="tl-subitems-done">
-                          <input class="tl-table__check" type="checkbox" name="subitem_done[<?= (int) $idx ?>]" value="1" <?= (int) $sub['done'] === 1 ? 'checked' : '' ?>
+                          <input class="tl-table__check" type="checkbox" name="subitem_done[<?= (int) $idx ?>]" value="1" <?= (int) $sub['effective_done'] === 1 ? 'checked' : '' ?>
                                  <?= $editTask['status'] === 'done' ? 'disabled' : '' ?> aria-label="子任务已完成">
                         </label>
                       <?php else: ?>

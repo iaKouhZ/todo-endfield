@@ -336,7 +336,11 @@ function tl_subitem_deadline_fields(array $subitem = [], ?int $index = null, boo
       </label>
       <?php if ($index !== null && !empty($subitem['id'])): ?>
         <div class="tl-subitems-completion">
-          <?php tl_completion_field($subitem['own_completed_at'] ?? null, name: 'subitem_completed_at' . $suffix); ?>
+          <?php if (!$readonly || (int) $subitem['done'] === 1): ?>
+            <?php tl_completion_field($subitem['own_completed_at'] ?? null, name: 'subitem_completed_at' . $suffix); ?>
+          <?php elseif ($subitem['effective_completed_at'] !== null): ?>
+            <span class="tl-form__label">完成于 <?= e(substr($subitem['effective_completed_at'], 0, 16)) ?></span>
+          <?php endif; ?>
         </div>
       <?php endif; ?>
     </div>
@@ -464,11 +468,12 @@ function tl_detail_view(?array $entry, bool $admin, string $backUrl = '', string
           <?php foreach ($subitems as $sub): ?>
             <?php
             $sid = (int) $sub['id'];
-            $sdone = (int) ($sub['done'] ?? 0) === 1 || $status === 'done';
+            $ownDone = (int) $sub['done'] === 1;
+            $sdone = (int) $sub['effective_done'] === 1;
             $subCompletedAt = $sdone ? $sub['effective_completed_at'] : null;
             $sub = tl_subitem_effective_deadline($sub, $task, $date);
             ?>
-            <li class="tl-detail__subitem" data-completed-at="<?= e($subCompletedAt ?? '') ?>">
+            <li class="tl-detail__subitem" data-own-done="<?= $ownDone ? '1' : '0' ?>" data-completed-at="<?= e($subCompletedAt ?? '') ?>">
               <?php if ($admin): ?>
                 <form method="post" action="<?= e(tl_action_url()) ?>" class="tl-detail__subform">
                   <?= tl_csrf_field() ?>
@@ -491,7 +496,7 @@ function tl_detail_view(?array $entry, bool $admin, string $backUrl = '', string
                   <?php if ($subCompletedAt !== null): ?>
                     <span class="tl-detail__subdue"><?= e(tl_completion_label($sub, $sub['due_date'], $subCompletedAt)) ?></span>
                   <?php endif; ?>
-                  <?php if ($admin): ?>
+                  <?php if ($admin && $ownDone): ?>
                     <details class="tl-detail__subcompletion">
                       <summary><?= $subCompletedAt === null || $sub['due_date'] === null ? '修改完成时间' : '完成时间 ' . e(substr($subCompletedAt, 0, 16)) ?></summary>
                       <form method="post" action="<?= e(tl_action_url()) ?>" class="tl-detail__subadd">
@@ -500,7 +505,7 @@ function tl_detail_view(?array $entry, bool $admin, string $backUrl = '', string
                         <input type="hidden" name="task_id" value="<?= $id ?>">
                         <input type="hidden" name="subitem_id" value="<?= $sid ?>">
                         <input type="hidden" name="back" value="<?= e($subBack) ?>">
-                        <?php tl_completion_field($sub['own_completed_at'], $status !== 'done'); ?>
+                        <?php tl_completion_field($sub['own_completed_at'], true); ?>
                         <button class="tl-action eds-button" type="submit">保存完成时间</button>
                       </form>
                     </details>

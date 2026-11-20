@@ -174,13 +174,14 @@ try {
             $pdo = db();
             $pdo->beginTransaction();
             try {
+                $previousStatus = null;
                 if ($id > 0) {
-                    tl_task_update($id, $input);
+                    $previousStatus = tl_task_update($id, $input);
                     $taskId = $id;
                 } else {
                     $taskId = tl_task_create($input);
                 }
-                tl_subitems_save_rows($taskId, $rows);
+                tl_subitems_save_rows($taskId, $rows, preserveDoneState: $previousStatus === 'done');
                 $pdo->commit();
             } catch (Throwable $e) {
                 $pdo->rollBack();
