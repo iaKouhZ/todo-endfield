@@ -692,17 +692,19 @@ function tl_admin_render_system(array $data): void
             <button class="tl-action eds-button" type="submit" name="format" value="json">导出 JSON</button>
             <button class="tl-action eds-button" type="submit" name="format" value="sqlite">导出 SQLite</button>
           </form>
-          <form method="post" action="<?= e(tl_action_url()) ?>" enctype="multipart/form-data" data-no-pjax>
+          <form class="tl-form tl-backup-import" method="post" action="<?= e(tl_action_url()) ?>" enctype="multipart/form-data" data-no-pjax>
             <?= tl_csrf_field() ?>
             <input type="hidden" name="op" value="import">
             <input type="hidden" name="back" value="<?= e(tl_admin_url(['view' => 'system'])) ?>">
-            <label class="tl-field">
-              <span class="tl-field__label">JSON 备份文件（最多 10 MB）</span>
-              <input type="file" name="backup" accept=".json,application/json" required>
+            <label class="tl-form__row">
+              <span class="tl-form__label">JSON 备份文件（最多 10 MB）</span>
+              <input class="tl-backup-file" type="file" name="backup" accept=".json,application/json" required>
             </label>
-            <button class="tl-action eds-button eds-button--danger" type="submit"
-                    data-confirm="导入备份将覆盖当前的分类、待办和完成记录。"
-                    data-confirm-title="覆盖导入">导入 JSON 备份</button>
+            <div class="tl-form__actions">
+              <button class="tl-action eds-button eds-button--danger" type="submit"
+                      data-confirm="导入备份将覆盖当前的分类、待办和完成记录。"
+                      data-confirm-title="覆盖导入">导入 JSON 备份</button>
+            </div>
           </form>
         </div>
 

@@ -90,7 +90,7 @@ git commit -m "<type>: <一句话说明>"
   - 依赖具体节点的初始化放进 `TL.onPageInit()` / `initPage()`，每次换页重跑；
   - 新页面的 `<script>` 由 `loadScripts()` 按需补装，别把 `<script>` 搬进 body。
 - 桌面端（≥981px）是应用外壳，滚动发生在 `.tl-main__scroll` 内部；窄屏交还文档滚动。
-- 样式只读 EDS 令牌，不重写 `eds-*` 组件规则。按钮必须是圆角（`.eds-capsule`），且文字在各配色 / 明暗下都要可读。
+- 样式只读 EDS 令牌，不重写 `eds-*` 组件规则。网页按钮使用直角矩形，且文字在各配色 / 明暗下都要可读。
 - **EDS 的两份 CSS 有两处存放位置，别搞混：**
   - 页面运行时引用的是 `assets/eds/tokens.css`、`assets/eds/components.css`。**云端只部署 `assets/`，`design/` 不上传**，所以页面只能指向 `assets/eds/`，指向 `design/` 线上必 404。
   - `design/` 下也保留同名副本，供 showcase、对比度门禁和本地阅读用；它不参与部署。
