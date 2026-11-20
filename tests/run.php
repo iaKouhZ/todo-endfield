@@ -174,6 +174,40 @@ $test['远期任务按发生日期排序，无截止日排在最后'] = static f
     ]));
     same(null, tl_task_edit_return(12, ['tab' => '//foreign.test']));
 };
+$test['追踪中的置顶任务保留近期子任务且不重复分组'] = static function (): void {
+    $filters = ['q' => '置顶边界'];
+    $dates = [
+        '远期' => '2026-03-28', '窗口内' => '2026-03-23',
+        '逾期' => '2026-03-19', '未设截止' => null, '重复' => '2026-03-24',
+    ];
+    $ids = [];
+    foreach ($dates as $label => $due) {
+        $task = tl_task_create([
+            'title' => '置顶边界 ' . $label, 'due_date' => $due, 'tracked' => true,
+        ] + ($label === '重复' ? ['repeat_unit' => 'day', 'repeat_interval' => 1] : []));
+        $ids[] = $task;
+        tl_task_set_pin($task, 1);
+        tl_subitem_add($task, '窗口上界', ['due_date' => '2026-03-27']);
+        tl_subitem_add($task, '窗口下界', ['due_date' => '2026-03-20']);
+        tl_subitem_add($task, '窗口外', ['due_date' => '2026-03-28']);
+        $done = tl_subitem_add($task, '已完成子任务', ['due_date' => '2026-03-20']);
+        tl_subitem_set_done($done, $task, true);
+    }
+    $feed = tl_front_tracked($filters);
+    same([0, 0, 0], array_column($feed['sections'], 'count'));
+    $pinned = tl_front_pinned($filters, 'tracked', $feed['due_subitems']);
+    same(count($ids), $pinned['count']);
+    $entries = array_column($pinned['entries'], null, 'key');
+    foreach ($ids as $index => $id) {
+        $date = array_values($dates)[$index];
+        $entry = $entries[$id . '@' . ($date ?? '-')];
+        same(['窗口下界', '窗口上界'], array_column($entry['due_subitems'], 'title'));
+    }
+    tl_task_set_pin($ids[0], 0);
+    $feed = tl_front_tracked($filters);
+    same(1, $feed['counts']['week']);
+    same(count($ids) - 1, tl_front_pinned($filters, 'tracked', $feed['due_subitems'])['count']);
+};
 $test['清理、范围裁剪及备份往返'] = static function (): void {
     $task = tl_task_create([
         'title' => '月末', 'due_date' => '2025-12-31', 'repeat_unit' => 'month', 'repeat_interval' => 1,

@@ -132,7 +132,7 @@ function tl_feed_occurrence_map(array $tasks, DateTimeImmutable $today, DateTime
     return tl_occurrence_map(array_column($tasks, 'id'), tl_ymd($start), tl_ymd($end));
 }
 
-function tl_front_pinned(array $filters = [], string $scope = 'tracked', array $weekParents = [], ?array $trackedTasks = null): array
+function tl_front_pinned(array $filters = [], string $scope = 'tracked', array $dueSubitems = [], ?array $trackedTasks = null): array
 {
     $today = tl_today();
     $horizon = $today->modify('+' . max(1, (int) cfg('front.horizon_days', 365)) . ' days');
@@ -150,38 +150,29 @@ function tl_front_pinned(array $filters = [], string $scope = 'tracked', array $
     $entries = [];
     foreach ($tasks as $task) {
         $id = (int) $task['id'];
-        if (isset($weekParents[$id])) {
-            continue;
-        }
         $dueDate = tl_parse_date($task['due_date'] ?? null);
         $repeat = tl_task_repeat($task);
 
-        if ($dueDate === null) {
-            $entries[] = tl_entry($task, null, false, false, $occurrenceMap);
-            continue;
+        $date = $dueDate?->format('Y-m-d');
+        $occurrence = $repeat !== null && $dueDate !== null;
+        if ($occurrence) {
+            $past = tl_occurrence_before($task, $today);
+            if ($past !== null && !isset($occurrenceMap[$id . '|' . tl_ymd($past)])) {
+                $date = tl_ymd($past);
+            } else {
+                $date = tl_occurrences_between($task, $today, $horizon)[0] ?? $date;
+            }
         }
 
-        if ($repeat === null) {
-            $date = $dueDate->format('Y-m-d');
-            $rowDone = (bool) isset($occurrenceMap[$id . '|' . $date]);
-            $entries[] = tl_entry($task, $date, $rowDone, false, $occurrenceMap);
-            continue;
+        $done = $date !== null && isset($occurrenceMap[$id . '|' . $date]);
+        $entry = tl_entry($task, $date, $done, $occurrence, $occurrenceMap);
+        if (isset($dueSubitems[$id])) {
+            $entry['due_subitems'] = $dueSubitems[$id];
         }
-
-        $past = tl_occurrence_before($task, $today);
-        if ($past !== null && !isset($occurrenceMap[$id . '|' . $past->format('Y-m-d')])) {
-            $date = $past->format('Y-m-d');
-            $rowDone = isset($occurrenceMap[$id . '|' . $date]);
-            $entries[] = tl_entry($task, $date, $rowDone, true, $occurrenceMap);
-            continue;
-        }
-        $next = tl_occurrences_between($task, $today, $horizon);
-        $date = $next[0] ?? $dueDate->format('Y-m-d');
-        $rowDone = isset($occurrenceMap[$id . '|' . $date]);
-        $entries[] = tl_entry($task, $date, $rowDone, true, $occurrenceMap);
+        $entries[] = $entry;
     }
 
-    /* 没有截止日的排在最后：tl_entry_sort_key 把 null 日期当成 9999-99-99。 */
+    /* 按主任务和展示的子任务中最早的截止时间排序。 */
     $entries = tl_sort_entries($entries, 'time');
 
     return ['entries' => $entries, 'count' => count($entries)];
@@ -238,7 +229,6 @@ function tl_front_tracked(array $filters = [], ?array $tasks = null): array
     $maxInterval = max([1, ...array_map(static fn (array $task): int => (int) ($task['repeat_interval'] ?? 1), $tasks)]);
     $occurrenceMap = tl_feed_occurrence_map($tasks, $today, $weekEnd->modify("+$maxInterval months"), true);
     $subitems = tl_due_subitems_by_task($today, $weekEnd);
-    $weekParents = [];
 
     $week = [];
     $nodate = [];
@@ -263,21 +253,19 @@ function tl_front_tracked(array $filters = [], ?array $tasks = null): array
         $id = (int) $task['id'];
         $dueDate = tl_parse_date($task['due_date'] ?? null);
         $repeat = tl_task_repeat($task);
-        $pinned = (int) $task['pinned'] === 1;
-        if ($pinned && !isset($subitems[$id])) {
+        if ((int) $task['pinned'] === 1) {
             continue;
         }
         $dates = $repeat === null ? [] : tl_occurrences_between($task, $today, $weekEnd);
 
         if (isset($subitems[$id])) {
-            $weekParents[$id] = true;
             $date = $dates[0] ?? $task['due_date'];
             $occurrence = $repeat !== null && $date !== null;
             $done = $occurrence && isset($occurrenceMap[$id . '|' . $date]);
             $entry = tl_entry($task, $date, $done, $occurrence, $occurrenceMap);
             $entry['due_subitems'] = $subitems[$id];
             $week[] = $entry;
-            if ($repeat === null || $pinned) {
+            if ($repeat === null) {
                 continue;
             }
             $seen[$entry['key']] = true;
@@ -317,7 +305,7 @@ function tl_front_tracked(array $filters = [], ?array $tasks = null): array
                 continue;
             }
         }
-        if ($dates === [] && !isset($weekParents[$id])) {
+        if ($dates === [] && !isset($subitems[$id])) {
             // 各类重复周期都不会超过同等数量的月，锚点更晚时从锚点开始。
             $end = max($dueDate, $weekEnd->modify('+' . $repeat['interval'] . ' months'));
             $next = tl_occurrences_between($task, $weekEnd->modify('+1 day'), $end)[0] ?? null;
@@ -334,7 +322,7 @@ function tl_front_tracked(array $filters = [], ?array $tasks = null): array
     $remaining = array_merge(tl_sort_entries($later), tl_sort_entries($nodate, 'created'));
 
     return [
-        'week_parents' => $weekParents,
+        'due_subitems' => $subitems,
         'sections' => [
             [
                 'id'     => 'overdue',

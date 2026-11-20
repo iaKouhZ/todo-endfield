@@ -189,7 +189,7 @@ tl_view_head(['title' => cfg('app.name') . ' · 任务看板', 'scheme' => $sche
           $trackedTasks = tl_tasks($filters + ['tracked' => true, 'not_done' => true]);
           $trackedFeed = tl_front_tracked($filters, $trackedTasks);
           ?>
-          <?php tl_sections_view(tl_prepend_pinned($trackedFeed['sections'], tl_front_pinned($filters, 'tracked', $trackedFeed['week_parents'], $trackedTasks)), $selectedId); ?>
+          <?php tl_sections_view(tl_prepend_pinned($trackedFeed['sections'], tl_front_pinned($filters, 'tracked', $trackedFeed['due_subitems'], $trackedTasks)), $selectedId); ?>
         <?php elseif ($tab === 'planned'): ?>
           <?php $plannedFeed = tl_front_scope('planned', $filters); ?>
           <?php tl_sections_view(tl_prepend_pinned($plannedFeed['sections'], tl_front_pinned($filters, 'planned')), $selectedId); ?>
