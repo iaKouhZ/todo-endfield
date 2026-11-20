@@ -221,7 +221,7 @@ function tl_prepend_pinned(array $sections, array $pinned): array
  * 只有三段：
  *   01 已逾期        已截止但未完成（含重复任务漏掉的那一次），最多 10 条
  *   02 近 N 天       今天至 N 天后，逐日展开；逾期不掺进来
- *   03 未设截止日与远期，远期事项按截止时间升序
+ *   03 远期与无截止日，远期事项按截止时间升序
  *
  * 逾期和近 N 天两段内先按分类，再按截止时间。
  * 重复任务在区间内逐日展开；「每天」的任务于是这一周每天都会出现。
@@ -331,7 +331,7 @@ function tl_front_tracked(array $filters = [], ?array $tasks = null): array
     $overdue = array_slice(tl_sort_entries($overdue, 'time'), 0, $overdueLimit);
 
     $group = static fn (array $entries): array => tl_group_by_category(tl_sort_entries($entries));
-    $remaining = array_merge(tl_sort_entries($nodate, 'created'), tl_sort_entries($later));
+    $remaining = array_merge(tl_sort_entries($later), tl_sort_entries($nodate, 'created'));
 
     return [
         'week_parents' => $weekParents,
@@ -361,12 +361,12 @@ function tl_front_tracked(array $filters = [], ?array $tasks = null): array
             [
                 'id'      => 'nodate',
                 'index'   => '03',
-                'title'   => '未设截止日与远期',
-                'latin'   => 'UNSCHEDULED & LATER',
+                'title'   => '远期与无截止日',
+                'latin'   => 'LATER & UNSCHEDULED',
                 'hint'    => '',
                 'entries' => $remaining,
                 'count'   => count($remaining),
-                'empty'   => '没有未设截止日或远期事项。',
+                'empty'   => '没有远期或无截止日的任务。',
                 'open'    => count($remaining) > 0,
             ],
         ],

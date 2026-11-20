@@ -54,20 +54,6 @@
 
   TL.applyScheme = applyScheme;
 
-  /* ------------------------------------------------------------- 批量选择 */
-  function refreshBulk() {
-    var boxes = Array.prototype.slice.call(document.querySelectorAll('[data-bulk-check]'));
-    var checked = boxes.filter(function (box) { return box.checked; });
-    var bulkBar = document.getElementById('bulk-bar');
-    if (bulkBar) bulkBar.hidden = checked.length === 0;
-    var counter = document.querySelector('[data-bulk-count]');
-    if (counter) counter.textContent = String(checked.length);
-    boxes.forEach(function (box) {
-      var row = box.closest('.tl-row');
-      if (row) row.classList.toggle('tl-row--selected', box.checked);
-    });
-  }
-
   /* ---------------------------------------------------------------- 对话框 */
   var pendingForm = null;
   var pendingSubmitter = null;
@@ -425,19 +411,6 @@
       applyScheme(button.getAttribute('data-tl-scheme'));
     });
 
-    /* 批量复选框 */
-    document.addEventListener('change', function (event) {
-      if (event.target && event.target.matches('[data-bulk-check]')) refreshBulk();
-    });
-    document.addEventListener('click', function (event) {
-      if (event.target && event.target.matches('[data-bulk-check]')) event.stopPropagation();
-      var clear = event.target.closest('[data-bulk-clear]');
-      if (clear) {
-        document.querySelectorAll('[data-bulk-check]').forEach(function (box) { box.checked = false; });
-        refreshBulk();
-      }
-    });
-
     /* 追踪 / 置顶开关的文字跟随状态 */
     document.addEventListener('change', function (event) {
       var input = event.target;
@@ -632,7 +605,6 @@
 
   /* ------------------------------------------------ 页面级初始化（可重入） */
   function initPage() {
-    refreshBulk();
 
     /* 折叠分段 */
     var saved = (function () {

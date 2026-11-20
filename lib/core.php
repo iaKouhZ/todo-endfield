@@ -376,6 +376,17 @@ function tl_admin_url(array $params = []): string
     return $path . '/' . tl_query($query);
 }
 
+/** 用看板筛选和发生日期重建任务地址。 */
+function tl_task_edit_return(int $id, mixed $context): ?string
+{
+    if ($id <= 0 || !is_array($context) || !in_array($context['tab'] ?? null, TL_FRONT_TABS, true)) {
+        return null;
+    }
+    $params = array_intersect_key($context, array_flip(['tab', 'cat', 'q', 'date']));
+    $params = array_filter($params, 'is_string');
+    return tl_front_url(['task' => $id] + $params);
+}
+
 /** 登录页地址。 */
 function tl_login_url(array $params = []): string
 {

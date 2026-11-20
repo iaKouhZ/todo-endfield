@@ -94,9 +94,9 @@ function tl_topbar(string $active): void
 
   <nav class="tl-topnav" aria-label="主导航">
     <?php if ($frontAllowed): ?>
-      <a class="tl-topnav__item" href="<?= e(tl_front_url()) ?>" <?= $active === 'front' ? 'aria-current="page"' : '' ?>>前台</a>
+      <a class="tl-topnav__item" href="<?= e(tl_front_url()) ?>" <?= $active === 'front' ? 'aria-current="page"' : '' ?>>任务看板</a>
     <?php endif; ?>
-    <a class="tl-topnav__item" href="<?= e(tl_admin_url()) ?>" <?= $active === 'admin' ? 'aria-current="page"' : '' ?>>后台</a>
+    <a class="tl-topnav__item" href="<?= e(tl_admin_url()) ?>" <?= $active === 'admin' ? 'aria-current="page"' : '' ?>>任务管理</a>
   </nav>
 
   <span class="tl-topbar__spacer"></span>
@@ -116,15 +116,12 @@ function tl_topbar(string $active): void
       <span class="tl-clock__meta" data-clock-meta><?= e(tl_date_cn($now)) ?> · <?= e(tl_weekday_cn($now)) ?></span>
     </div>
     <?php if ($isAdmin): ?>
-      <a class="eds-button eds-button--solid" href="<?= e(tl_admin_url()) ?>">后台工作台</a>
       <form class="tl-form-flush" method="post" action="<?= e(tl_logout_url()) ?>">
         <?= tl_csrf_field() ?>
         <input type="hidden" name="role" value="admin">
         <input type="hidden" name="back" value="<?= e(tl_front_url()) ?>">
-        <button class="tl-ghostlink" type="submit">退出</button>
+        <button class="tl-ghostlink" type="submit">退出管理</button>
       </form>
-    <?php else: ?>
-      <a class="eds-button" href="<?= e(tl_login_url()) ?>">后台登录</a>
     <?php endif; ?>
   </div>
 </header>
@@ -137,7 +134,7 @@ function tl_topbar(string $active): void
    行本身是一个链接（点开详情）。复选框是独立的元素，通过 form 属性挂在
    批量表单上，因此不会嵌进 <a>，也没有点击区域的相互吞并。
    =========================================================================== */
-function tl_row_view(array $entry, bool $admin, bool $selectable, ?int $selectedId): void
+function tl_row_view(array $entry, ?int $selectedId): void
 {
     $task = $entry['task'];
     $id = (int) $task['id'];
@@ -179,13 +176,6 @@ function tl_row_view(array $entry, bool $admin, bool $selectable, ?int $selected
     $openUrl = tl_front_url($params);
     ?>
 <div class="<?= $classes ?>" data-task-row data-task-id="<?= $id ?>" data-occur-date="<?= e($date ?? '') ?>">
-  <?php if ($selectable && $admin): ?>
-    <input class="tl-row__check" type="checkbox" name="ids[]" value="<?= $id ?>"
-           form="bulk-form" data-bulk-check aria-label="选择：<?= e($task['title']) ?>">
-  <?php else: ?>
-    <span class="tl-row__check--placeholder tl-row__check" aria-hidden="true"></span>
-  <?php endif; ?>
-
   <a class="tl-row__link" href="<?= e($openUrl) ?>">
     <span class="tl-row__main">
       <span class="tl-row__title"><?= e($task['title']) ?></span>
@@ -224,7 +214,7 @@ function tl_row_view(array $entry, bool $admin, bool $selectable, ?int $selected
 }
 
 /** 分类分组下的行列表。 */
-function tl_entries_view(array $groups, bool $admin, bool $selectable, ?int $selectedId, string $emptyText = '暂无事项'): void
+function tl_entries_view(array $groups, ?int $selectedId, string $emptyText = '暂无事项'): void
 {
     if ($groups === []) {
         ?>
@@ -242,7 +232,7 @@ function tl_entries_view(array $groups, bool $admin, bool $selectable, ?int $sel
         <span class="tl-section-head__name"><?= e($group['category']['name']) ?></span>
         <span class="tl-section-head__count"><?= count($group['entries']) ?></span>
       </div>
-      <?php foreach ($group['entries'] as $entry) { tl_row_view($entry, $admin, $selectable, $selectedId); } ?>
+      <?php foreach ($group['entries'] as $entry) { tl_row_view($entry, $selectedId); } ?>
     <?php endforeach; ?>
 </div>
     <?php
@@ -256,7 +246,7 @@ function tl_entries_view(array $groups, bool $admin, bool $selectable, ?int $sel
  *
  * @param array<int, array> $sections 每项含 id/index/title/hint/groups|entries/count/empty/open
  */
-function tl_sections_view(array $sections, bool $admin, ?int $selectedId): void
+function tl_sections_view(array $sections, ?int $selectedId): void
 {
     foreach ($sections as $section) {
         $open = !empty($section['open']);
@@ -269,7 +259,6 @@ function tl_sections_view(array $sections, bool $admin, ?int $selectedId): void
             aria-expanded="<?= $open ? 'true' : 'false' ?>"
             aria-controls="fold-<?= e($section['id']) ?>">
       <span class="tl-fold__chevron" aria-hidden="true"></span>
-      <span class="tl-track-head__index"><?= e($section['index']) ?></span>
       <span class="tl-track-head__title"><?= e($section['title']) ?></span>
       <?php if (($section['hint'] ?? '') !== ''): ?>
         <span class="tl-track-head__hint"><?= e($section['hint']) ?></span>
@@ -285,7 +274,7 @@ function tl_sections_view(array $sections, bool $admin, ?int $selectedId): void
         </div>
       <?php else: ?>
         <div class="tl-rows">
-          <?php foreach ($section['entries'] as $entry) { tl_row_view($entry, $admin, $admin, $selectedId); } ?>
+          <?php foreach ($section['entries'] as $entry) { tl_row_view($entry, $selectedId); } ?>
         </div>
       <?php endif; ?>
     <?php elseif ($section['groups'] === []): ?>
@@ -306,7 +295,7 @@ function tl_sections_view(array $sections, bool $admin, ?int $selectedId): void
             <span class="tl-section-head__count"><?= count($group['entries']) ?></span>
           </button>
           <div class="tl-fold__body tl-rows" id="fold-<?= e($gid) ?>">
-            <?php foreach ($group['entries'] as $entry) { tl_row_view($entry, $admin, $admin, $selectedId); } ?>
+            <?php foreach ($group['entries'] as $entry) { tl_row_view($entry, $selectedId); } ?>
           </div>
         </div>
       <?php endforeach; ?>
@@ -366,7 +355,7 @@ function tl_completion_field(?string $completedAt, bool $required = false, strin
 /* ===========================================================================
    右侧详情
    =========================================================================== */
-function tl_detail_view(?array $entry, bool $admin, string $backUrl = ''): void
+function tl_detail_view(?array $entry, bool $admin, string $backUrl = '', string $editUrl = ''): void
 {
     if ($entry === null) {
         ?>
@@ -375,14 +364,6 @@ function tl_detail_view(?array $entry, bool $admin, string $backUrl = ''): void
     <span class="tl-detail__empty-mark">↖</span>
     <span class="tl-detail-placeholder">选择左侧任一事项</span>
   </div>
-  <?php if ($admin): ?>
-    <div class="tl-detail__foot">
-      <div class="tl-detail__actions">
-        <span class="tl-detail__hint">Admin</span>
-        <a class="eds-button" href="<?= e(tl_admin_url(['view' => 'tasks'])) ?>">管理待办</a>
-      </div>
-    </div>
-  <?php endif; ?>
 </aside>
         <?php
         return;
@@ -558,7 +539,6 @@ function tl_detail_view(?array $entry, bool $admin, string $backUrl = ''): void
   <div class="tl-detail__foot">
     <?php if ($admin): ?>
       <div class="tl-detail__actions">
-        <span class="tl-detail__hint">Admin</span>
         <form class="tl-form-contents" method="post" action="<?= e(tl_action_url()) ?>">
           <?= tl_csrf_field() ?>
           <input type="hidden" name="op" value="complete">
@@ -568,7 +548,7 @@ function tl_detail_view(?array $entry, bool $admin, string $backUrl = ''): void
           <input type="hidden" name="done" value="<?= $isDoneNow ? '0' : '1' ?>">
           <input type="hidden" name="back" value="<?= e($_SERVER['REQUEST_URI'] ?? tl_front_url()) ?>">
           <button class="eds-button <?= $isDoneNow ? '' : 'eds-button--solid' ?>" type="submit">
-            <?= $isDoneNow ? '标记为未完成' : '标记为完成' ?>
+            <?= $markAction === 'occurrence' ? ($isDoneNow ? '撤销本次完成' : '完成本次') : ($isDoneNow ? '标记为未完成' : '标记为完成') ?>
           </button>
         </form>
         <form class="tl-form-contents" method="post" action="<?= e(tl_action_url()) ?>">
@@ -587,6 +567,7 @@ function tl_detail_view(?array $entry, bool $admin, string $backUrl = ''): void
           <input type="hidden" name="back" value="<?= e($_SERVER['REQUEST_URI'] ?? tl_front_url()) ?>">
           <button class="eds-button" type="submit"><?= $pinned ? '取消置顶' : '置顶' ?></button>
         </form>
+        <a class="eds-button" href="<?= e($editUrl) ?>">编辑任务</a>
       </div>
     <?php else: ?>
       <div class="tl-detail__guest">

@@ -314,14 +314,6 @@ a { color: inherit; text-decoration: none; }
 
 .tl-tab:hover { color: var(--eds-text-primary); background: var(--eds-wash-hover); }
 
-.tl-tab__index {
-  font-size: var(--eds-text-3xs);
-  font-weight: var(--eds-weight-semibold);
-  letter-spacing: var(--eds-tracking-wide);
-  color: var(--eds-text-dimmed);
-  font-variant-numeric: tabular-nums;
-}
-
 .tl-tab__count {
   font-size: var(--eds-text-2xs);
   font-weight: var(--eds-weight-semibold);
@@ -336,7 +328,6 @@ a { color: inherit; text-decoration: none; }
   box-shadow: inset 0 -2px 0 var(--eds-accent);
 }
 
-.tl-tab[aria-selected='true'] .tl-tab__index { color: var(--eds-accent-text); }
 
 .tl-tab--tracked[aria-selected='true'] { box-shadow: inset 0 -2px 0 var(--eds-accent); }
 
@@ -434,18 +425,6 @@ a { color: inherit; text-decoration: none; }
   color: var(--eds-accent-text);
   border-bottom: 1px solid var(--eds-wash-edge);
   padding-bottom: 1px;
-}
-
-/* 表单里的「取消」是退出口，字要比正文链接大一号，别让人找不着。 */
-.tl-clear--lg {
-  font-size: var(--eds-text-lg);
-  padding-bottom: 2px;
-}
-
-/* 编辑表单底部的取消键：比「保存修改」再大一档，两个键都看得清。 */
-.tl-form__actions .tl-cancel-btn {
-  font-size: var(--eds-text-lg);
-  padding: 4px 18px;
 }
 
 /* ============================================================================
@@ -591,7 +570,7 @@ a { color: inherit; text-decoration: none; }
 .tl-row {
   position: relative;
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr);
   align-items: center;
   gap: 12px;
   min-height: 52px;
@@ -619,28 +598,6 @@ a { color: inherit; text-decoration: none; }
 }
 
 .tl-row--overdue .tl-row__deadline { color: var(--eds-status-error-text); }
-
-.tl-row__check {
-  appearance: none;
-  width: 15px;
-  height: 15px;
-  margin: 0;
-  flex: none;
-  border: 1px solid var(--eds-line-contrast);
-  background: var(--eds-surface-raised);
-  cursor: pointer;
-  position: relative;
-}
-
-.tl-row__check:checked { background: var(--eds-accent); border-color: var(--eds-accent); }
-
-.tl-row__check:checked::after {
-  content: '';
-  position: absolute;
-  inset: 3px;
-  background: var(--eds-text-on-accent);
-  clip-path: polygon(14% 47%, 0 61%, 40% 100%, 100% 19%, 85% 5%, 39% 69%);
-}
 
 .tl-row__link {
   display: grid;
@@ -1081,14 +1038,6 @@ a { color: inherit; text-decoration: none; }
   padding: 10px 14px;
 }
 
-.tl-detail__hint {
-  margin-right: auto;
-  font-size: var(--eds-text-3xs);
-  letter-spacing: var(--eds-tracking-wide);
-  text-transform: uppercase;
-  color: var(--eds-text-tertiary);
-}
-
 .tl-detail__guest {
   display: flex;
   align-items: center;
@@ -1190,14 +1139,6 @@ a { color: inherit; text-decoration: none; }
 .tl-section-head--button:hover { background: var(--eds-wash-hover); }
 
 .tl-section-head--button .tl-section-head__count { margin-left: auto; }
-
-.tl-track-head__index {
-  font-size: var(--eds-text-2xs);
-  font-weight: var(--eds-weight-semibold);
-  letter-spacing: var(--eds-tracking-wide);
-  color: var(--eds-text-dimmed);
-  font-variant-numeric: tabular-nums;
-}
 
 .tl-track-head__title {
   font-size: var(--eds-text-md);
@@ -1354,7 +1295,8 @@ a { color: inherit; text-decoration: none; }
   background-repeat: no-repeat;
 }
 
-.tl-form__actions { display: flex; align-items: center; gap: 8px; padding-top: 2px; }
+.tl-form__actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding-top: 2px; }
+.tl-form__actions > .eds-button { box-sizing: border-box; min-height: 34px; }
 .tl-form__actions .tl-form__hint { margin-left: auto; font-size: var(--eds-text-3xs); color: var(--eds-text-tertiary); }
 
 /* 追踪开关：显示当前状态文字，不让人靠滑块位置猜。 */
@@ -1437,6 +1379,8 @@ a { color: inherit; text-decoration: none; }
 .tl-inline-form { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .tl-inline-form .tl-input { flex: 1 1 120px; min-width: 0; }
 
+.tl-table-scroll { max-width: 100%; overflow-x: auto; }
+
 .tl-table {
   width: 100%;
   border-collapse: collapse;
@@ -1495,7 +1439,15 @@ a { color: inherit; text-decoration: none; }
 }
 .tl-table__actions a:hover,
 .tl-table__actions button:hover { background: var(--eds-wash-hover); border-color: var(--eds-line-contrast); }
-.tl-table__actions .tl-danger { color: var(--eds-status-error-text); border-color: transparent; background: transparent; }
+.tl-table__actions .tl-danger {
+  color: var(--eds-status-error-text);
+  border-color: transparent;
+  background: transparent;
+  min-width: 36px;
+  min-height: 36px;
+  font-size: var(--eds-text-lg);
+  line-height: 1;
+}
 .tl-table__actions .tl-danger:hover { background: var(--eds-status-error); color: var(--eds-text-inverse); }
 
 .tl-table__check { appearance: none; width: 14px; height: 14px; margin: 0; border: 1px solid var(--eds-line-contrast); background: var(--eds-surface-raised); cursor: pointer; position: relative; }
@@ -2112,7 +2064,6 @@ a { color: inherit; text-decoration: none; }
   .tl-readout:nth-child(n + 5) { display: none; }
   .tl-row__side .tl-status { display: none; }
   .tl-row__link { grid-template-columns: minmax(0, 1fr); }
-  .tl-tab__index { display: none; }
   .tl-form__grid { grid-template-columns: 1fr; }
   .tl-form__grid--3 { grid-template-columns: 1fr; }
   .tl-dialog__band { padding: 0 16px 16px; }
@@ -2146,7 +2097,6 @@ a { color: inherit; text-decoration: none; }
 .tl-category-name-input { max-width: 220px; }
 .tl-gate__kicker--caption { margin-top: 6px; color: var(--eds-text-tertiary); }
 .tl-topbar__controls { display: flex; align-items: center; gap: 14px; }
-.tl-row__check--placeholder { visibility: hidden; }
 .tl-empty-title { font-size: var(--eds-text-lg); color: var(--eds-text-secondary); }
 .tl-empty-hint { font-size: var(--eds-text-sm); }
 .tl-detail-placeholder { font-size: var(--eds-text-md); color: var(--eds-text-secondary); }

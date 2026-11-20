@@ -34,10 +34,10 @@ if (!tl_front_allowed()) {
 
 /* 选项卡清单：id 的顺序就是 TL_FRONT_TABS 的顺序，地址生成靠它。 */
 $tabMeta = [
-    'tracked' => ['index' => '01', 'name' => '追踪中', 'latin' => 'TRACKED'],
-    'planned' => ['index' => '02', 'name' => '规划中', 'latin' => 'PLANNED'],
-    'done'    => ['index' => '03', 'name' => '已完成', 'latin' => 'COMPLETED'],
-    'all'     => ['index' => '04', 'name' => '全部',   'latin' => 'ALL'],
+    'tracked' => ['name' => '追踪中', 'latin' => 'TRACKED'],
+    'planned' => ['name' => '未追踪', 'latin' => 'UNTRACKED'],
+    'done'    => ['name' => '已完成', 'latin' => 'COMPLETED'],
+    'all'     => ['name' => '全部',   'latin' => 'ALL'],
 ];
 
 $tabs = [];
@@ -98,58 +98,26 @@ if ($selectedId !== null) {
     }
 }
 
-$backUrl = tl_front_url(array_filter([
+$frontParams = array_filter([
     'tab'  => $tab,
     'cat'  => $categoryId,
     'q'    => $query !== '' ? $query : null,
     'task' => $selectedId,
     'date' => $selectedDate,
-], fn ($v) => $v !== null && $v !== ''));
+], fn ($v) => $v !== null && $v !== '');
+$backUrl = tl_front_url($frontParams);
+$editUrl = $admin && $selectedEntry !== null
+    ? tl_admin_url(['edit' => $selectedId, 'from' => array_diff_key($frontParams, ['task' => true])])
+    : '';
 
 $scheme = tl_scheme();
 
 $flash = tl_flash_take();
-tl_view_head(['title' => cfg('app.name') . ' · 追踪', 'scheme' => $scheme]);
+tl_view_head(['title' => cfg('app.name') . ' · 任务看板', 'scheme' => $scheme]);
 ?>
 <div class="tl-shell">
   <?php tl_topbar('front'); ?>
   <?php tl_flash_view($flash); ?>
-
-  <div class="tl-masthead">
-    <div>
-      <h1 class="tl-masthead__title"><?= e($tabNames[$tab]) ?></h1>
-      <p class="tl-masthead__sub"><?= $admin ? '可以标记与追踪' : '公开只读' ?></p>
-    </div>
-    <button class="tl-mobile-toggle" type="button" data-mobile-panel="board"
-            aria-expanded="false" aria-controls="tl-board">
-      <span class="tl-fold__chevron" aria-hidden="true"></span>
-      <span>看板</span>
-      <span class="tl-mobile-toggle__value"><?= (int) $tabCounts[$tab] ?> 条 · <?= $counts['tracked'] ?> 追踪中</span>
-    </button>
-
-    <div class="tl-readouts" id="tl-board" data-mobile-body="board">
-      <div class="tl-readout tl-readout--accent">
-        <span class="tl-readout__value"><?= $counts['active'] ?></span>
-        <span class="tl-readout__label">进行中</span>
-      </div>
-      <div class="tl-readout">
-        <span class="tl-readout__value"><?= $counts['planned'] ?></span>
-        <span class="tl-readout__label">规划中</span>
-      </div>
-      <div class="tl-readout">
-        <span class="tl-readout__value"><?= $counts['tracked'] ?></span>
-        <span class="tl-readout__label">追踪</span>
-      </div>
-      <div class="tl-readout">
-        <span class="tl-readout__value"><?= $counts['done'] ?></span>
-        <span class="tl-readout__label">已完成</span>
-      </div>
-      <div class="tl-readout">
-        <span class="tl-readout__value"><?= $counts['all'] ?></span>
-        <span class="tl-readout__label">全部</span>
-      </div>
-    </div>
-  </div>
 
   <nav class="tl-tabs" role="tablist" aria-label="任务视图">
     <?php foreach ($tabs as $item): ?>
@@ -161,20 +129,14 @@ tl_view_head(['title' => cfg('app.name') . ' · 追踪', 'scheme' => $scheme]);
              'q'   => $query !== '' ? $query : null,
          ], fn ($v) => $v !== null && $v !== ''))) ?>"
          aria-selected="<?= $item['id'] === $tab ? 'true' : 'false' ?>">
-        <span class="tl-tab__index"><?= e($item['index']) ?></span>
         <span><?= e($item['name']) ?></span>
         <span class="tl-tab__count"><?= (int) $tabCounts[$item['id']] ?></span>
       </a>
     <?php endforeach; ?>
   </nav>
 
-  <?php // 批量操作表单：复选框通过 form 属性挂在这里，行本身仍是链接 ?>
   <?php if ($admin): ?>
-    <form id="bulk-form" method="post" action="<?= e(tl_action_url()) ?>">
-      <?= tl_csrf_field() ?>
-      <input type="hidden" name="op" value="bulk">
-      <input type="hidden" name="back" value="<?= e($backUrl) ?>">
-    </form>
+    <form id="bulk-form" hidden></form>
   <?php endif; ?>
 
   <button class="tl-mobile-toggle" type="button" data-mobile-panel="filter"
@@ -227,31 +189,19 @@ tl_view_head(['title' => cfg('app.name') . ' · 追踪', 'scheme' => $scheme]);
           $trackedTasks = tl_tasks($filters + ['tracked' => true, 'not_done' => true]);
           $trackedFeed = tl_front_tracked($filters, $trackedTasks);
           ?>
-          <?php tl_sections_view(tl_prepend_pinned($trackedFeed['sections'], tl_front_pinned($filters, 'tracked', $trackedFeed['week_parents'], $trackedTasks)), $admin, $selectedId); ?>
+          <?php tl_sections_view(tl_prepend_pinned($trackedFeed['sections'], tl_front_pinned($filters, 'tracked', $trackedFeed['week_parents'], $trackedTasks)), $selectedId); ?>
         <?php elseif ($tab === 'planned'): ?>
           <?php $plannedFeed = tl_front_scope('planned', $filters); ?>
-          <?php tl_sections_view(tl_prepend_pinned($plannedFeed['sections'], tl_front_pinned($filters, 'planned')), $admin, $selectedId); ?>
+          <?php tl_sections_view(tl_prepend_pinned($plannedFeed['sections'], tl_front_pinned($filters, 'planned')), $selectedId); ?>
         <?php else: ?>
           <?php $scope = tl_front_scope($tab, $filters); ?>
-          <?php tl_entries_view($scope['groups'], $admin, $admin, $selectedId, '这个选项卡里没有事项'); ?>
+          <?php tl_entries_view($scope['groups'], $selectedId, '这个选项卡里没有事项'); ?>
         <?php endif; ?>
       </div>
 
-      <?php if ($admin): ?>
-        <div class="tl-bulk" id="bulk-bar" hidden>
-          <span class="tl-bulk__count">已选 <strong data-bulk-count>0</strong> 项</span>
-          <button class="eds-button" type="submit" form="bulk-form" name="bulk_op" value="status:active">设为进行中</button>
-          <button class="eds-button" type="submit" form="bulk-form" name="bulk_op" value="status:planned">设为规划中</button>
-          <button class="eds-button eds-button--solid" type="submit" form="bulk-form" name="bulk_op" value="status:done">设为已完成</button>
-          <span class="tl-toolbar__spacer"></span>
-          <button class="eds-button eds-button--danger" type="submit" form="bulk-form" name="bulk_op" value="delete"
-                  data-confirm="删除选中的待办事项？此操作不可撤销。" data-confirm-title="删除待办">删除</button>
-          <button class="tl-ghostlink" type="button" data-bulk-clear>取消选择</button>
-        </div>
-      <?php endif; ?>
     </main>
 
-    <?php tl_detail_view($selectedEntry, $admin, $backUrl); ?>
+    <?php tl_detail_view($selectedEntry, $admin, $backUrl, $editUrl); ?>
   </div>
 
   <?php tl_view_foot(); ?>

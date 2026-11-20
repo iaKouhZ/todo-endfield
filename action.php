@@ -184,7 +184,8 @@ try {
                 $pdo->rollBack();
                 throw $e;
             }
-            $finish($id > 0 ? '已保存修改。' : '已添加待办。', 'ok', $listUrl);
+            $returnUrl = tl_task_edit_return($id, $_POST['from'] ?? null);
+            $finish($id > 0 ? '已保存修改。' : '已添加待办。', 'ok', $returnUrl ?? $listUrl);
         }
 
         case 'subitem_add': {

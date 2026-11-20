@@ -124,17 +124,17 @@
   --eds-font-display: "Arial Black", Arial, "PingFang SC", "Microsoft YaHei", sans-serif;
   --eds-font-condensed: "Arial Narrow", Arial, sans-serif;
 
-  --eds-text-3xs: 8px;
-  --eds-text-2xs: 9px;
-  --eds-text-xs: 10px;
-  --eds-text-sm: 11px;
-  --eds-text-base: 12px;
-  --eds-text-md: 13px;
-  --eds-text-lg: 14px;
-  --eds-text-xl: 17px;
-  --eds-text-2xl: 19px;
-  --eds-text-3xl: 22px;
-  --eds-text-4xl: 39px;
+  --eds-text-3xs: 0.6875rem;
+  --eds-text-2xs: 0.75rem;
+  --eds-text-xs: 0.8125rem;
+  --eds-text-sm: 0.875rem;
+  --eds-text-base: 0.9375rem;
+  --eds-text-md: 1rem;
+  --eds-text-lg: 1.0625rem;
+  --eds-text-xl: 1.25rem;
+  --eds-text-2xl: 1.4375rem;
+  --eds-text-3xl: 1.6875rem;
+  --eds-text-4xl: 2.625rem;
   /* Display sizes scale off the SMALLER viewport axis so neither a short nor a
      narrow window can overflow, with a legibility floor and a ceiling that
      stops the type shrinking on a 4K panel. */

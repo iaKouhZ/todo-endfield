@@ -32,7 +32,7 @@ $data = tl_admin_data();
 ['categories' => $categories, 'globalCounts' => $globalCounts, 'now' => $now] = $data;
 
 $flash = tl_flash_take();
-tl_view_head(['title' => cfg('app.name') . ' · 后台', 'scheme' => tl_scheme()]);
+tl_view_head(['title' => cfg('app.name') . ' · 任务管理', 'scheme' => tl_scheme()]);
 ?>
 <div class="tl-shell">
   <?php tl_topbar('admin'); ?>
@@ -40,7 +40,7 @@ tl_view_head(['title' => cfg('app.name') . ' · 后台', 'scheme' => tl_scheme()
 
   <div class="tl-masthead">
     <div>
-      <h1 class="tl-masthead__title">工作台</h1>
+      <h1 class="tl-masthead__title">任务管理</h1>
       <p class="tl-masthead__sub"><?= e(tl_date_cn($now)) ?> · <?= e(tl_weekday_cn($now)) ?></p>
     </div>
     <div class="tl-readouts">
@@ -66,9 +66,9 @@ tl_view_head(['title' => cfg('app.name') . ' · 后台', 'scheme' => tl_scheme()
   <nav class="tl-tabs" role="tablist" aria-label="后台视图">
     <?php
     $adminMeta = [
-        'tasks'      => ['index' => '01', 'name' => '待办事项'],
-        'categories' => ['index' => '02', 'name' => '分类设置'],
-        'system'     => ['index' => '03', 'name' => '维护'],
+        'tasks'      => ['name' => '待办事项'],
+        'categories' => ['name' => '分类设置'],
+        'system'     => ['name' => '维护'],
     ];
     foreach (TL_ADMIN_VIEWS as $adminView) {
         $item = ['id' => $adminView] + $adminMeta[$adminView];
@@ -76,7 +76,6 @@ tl_view_head(['title' => cfg('app.name') . ' · 后台', 'scheme' => tl_scheme()
       <a class="tl-tab" role="tab"
          href="<?= e(tl_admin_url(['view' => $item['id']])) ?>"
          aria-selected="<?= $view === $item['id'] ? 'true' : 'false' ?>">
-        <span class="tl-tab__index"><?= e($item['index']) ?></span>
         <span><?= e($item['name']) ?></span>
       </a>
     <?php } ?>

@@ -55,11 +55,18 @@ function tl_admin_data(): array
     /* 取消编辑：回到同一个列表（保留筛选），但不带 edit，右侧就换回新增表单。 */
     $listUrl = tl_admin_url(array_diff_key($adminParams, ['edit' => true]));
 
+    $frontContext = $_GET['from'] ?? null;
+    $returnUrl = $editTask === null ? null : tl_task_edit_return((int) $editTask['id'], $frontContext);
+    $returnParams = $returnUrl === null ? [] : array_filter(
+        array_intersect_key($frontContext, array_flip(['tab', 'cat', 'q', 'date'])),
+        'is_string'
+    );
+
     return compact(
         'categories', 'now', 'editTask', 'editSubitems', 'statusFilter',
         'catFilter', 'search', 'trackedOnly', 'page', 'pages',
         'pageTasks', 'globalCounts', 'backUrl', 'listUrl', 'totalTasks',
-        'perPage',
+        'perPage', 'returnUrl', 'returnParams',
     );
 }
 
@@ -78,7 +85,8 @@ function tl_admin_empty_subitem_row(): void
 
 function tl_admin_render_tasks(array $data): void
 {
-    ['categories' => $categories, 'editTask' => $editTask, 'editSubitems' => $editSubitems, 'statusFilter' => $statusFilter, 'catFilter' => $catFilter, 'search' => $search, 'trackedOnly' => $trackedOnly, 'page' => $page, 'pages' => $pages, 'pageTasks' => $pageTasks, 'backUrl' => $backUrl, 'listUrl' => $listUrl, 'totalTasks' => $totalTasks] = $data;
+    ['categories' => $categories, 'editTask' => $editTask, 'editSubitems' => $editSubitems, 'statusFilter' => $statusFilter, 'catFilter' => $catFilter, 'search' => $search, 'trackedOnly' => $trackedOnly, 'page' => $page, 'pages' => $pages, 'pageTasks' => $pageTasks, 'backUrl' => $backUrl, 'listUrl' => $listUrl, 'totalTasks' => $totalTasks,
+        'returnUrl' => $returnUrl, 'returnParams' => $returnParams] = $data;
     ?>
     <!-- ================================================================ 待办 -->
     <div class="tl-admin-grid">
@@ -122,6 +130,7 @@ function tl_admin_render_tasks(array $data): void
           </span>
         </form>
 
+        <div class="tl-table-scroll">
           <table class="tl-table tl-table--clickable">
             <thead>
               <tr>
@@ -169,7 +178,6 @@ function tl_admin_render_tasks(array $data): void
                           <?php if ((int) $task['pinned'] === 1): ?> · 置顶<?php endif; ?>
                           <?php if ((int) $task['tracked'] === 1): ?> · 追踪<?php endif; ?>
                           <?php if ($repeat !== null): ?> · <?= e(tl_repeat_label($repeat['unit'], $repeat['interval'])) ?><?php endif; ?>
-                          <?php if (!empty($task['detail'])): ?> · 有详情<?php endif; ?>
                         </span>
                       </span>
                     </a>
@@ -190,9 +198,9 @@ function tl_admin_render_tasks(array $data): void
                         <input type="hidden" name="op" value="task_delete">
                         <input type="hidden" name="id" value="<?= $id ?>">
                         <input type="hidden" name="back" value="<?= e($backUrl) ?>">
-                        <button class="tl-danger" type="submit"
+                        <button class="tl-danger" type="submit" aria-label="删除待办：<?= e($task['title']) ?>"
                                 data-confirm="删除「<?= e($task['title']) ?>」？此操作不可撤销。"
-                                data-confirm-title="删除待办">删</button>
+                                data-confirm-title="删除待办"><span aria-hidden="true">✕</span></button>
                       </form>
                     </div>
                   </td>
@@ -200,6 +208,7 @@ function tl_admin_render_tasks(array $data): void
               <?php endforeach; ?>
             </tbody>
           </table>
+        </div>
 
         <form id="admin-bulk" method="post" action="<?= e(tl_action_url()) ?>">
           <?= tl_csrf_field() ?>
@@ -240,11 +249,13 @@ function tl_admin_render_tasks(array $data): void
             <input type="hidden" name="op" value="task_save">
             <input type="hidden" name="id" value="<?= (int) $editTask['id'] ?>">
             <input type="hidden" name="back" value="<?= e($backUrl) ?>">
+            <?php foreach ($returnParams as $name => $value): ?>
+              <input type="hidden" name="from[<?= e($name) ?>]" value="<?= e($value) ?>">
+            <?php endforeach; ?>
 
             <div class="tl-card__head">
               <span class="tl-card__title">编辑待办</span>
               <span class="tl-card__latin">#<?= (int) $editTask['id'] ?></span>
-              <a class="tl-push-right tl-clear tl-clear--lg" href="<?= e($listUrl) ?>">取消</a>
             </div>
 
             <div class="tl-form">
@@ -369,15 +380,12 @@ function tl_admin_render_tasks(array $data): void
                 </div>
                 <?php if ($editTask['status'] !== 'done'): ?>
                   <button type="button" class="eds-button tl-subitems-add" data-subitem-add-row data-subitem-editor="subitems-editor">添加子任务行</button>
-                  <p class="tl-note-spaced tl-note">主任务标为已完成时，所有子任务将显示为已完成。</p>
-                <?php else: ?>
-                  <p class="tl-note-spaced tl-note">主任务已完成，子任务已全部勾选。</p>
                 <?php endif; ?>
               </div>
 
               <div class="tl-form__actions">
                 <button class="eds-button eds-button--solid" type="submit">保存修改</button>
-                <a class="eds-button tl-cancel-btn" href="<?= e($listUrl) ?>">取消</a>
+                <a class="eds-button" href="<?= e($returnUrl ?? $listUrl) ?>">取消</a>
               </div>
             </div>
           </form>
@@ -529,6 +537,7 @@ function tl_admin_render_categories(array $data): void
             <span class="tl-push-right tl-filter-note"><?= count($categories) ?> 个分类</span>
           </div>
 
+        <div class="tl-table-scroll">
           <table class="tl-table">
             <thead>
               <tr>
@@ -566,6 +575,7 @@ function tl_admin_render_categories(array $data): void
               <?php endforeach; ?>
             </tbody>
           </table>
+        </div>
         </div>
       </main>
 

@@ -152,6 +152,28 @@ $test['子任务按截止时间排序，并按原 ID 保存编辑'] = static fun
     same('2027-01-02', $rows[4]['due_date']);
     same('上午', $rows[4]['title']);
 };
+$test['远期任务按发生日期排序，无截止日排在最后'] = static function (): void {
+    $undated = tl_task_create(['title' => '远期排序 无截止日', 'tracked' => true]);
+    $later = tl_task_create(['title' => '远期排序 次年', 'due_date' => '2027-01-01', 'tracked' => true]);
+    $series = tl_task_create([
+        'title' => '远期排序 月末', 'due_date' => '2026-02-28', 'due_time' => '09:00',
+        'repeat_unit' => 'month', 'repeat_interval' => 1, 'tracked' => true,
+    ]);
+    tl_complete_occurrence($series, '2026-02-28', true);
+    $afternoon = tl_task_create([
+        'title' => '远期排序 同日下午', 'due_date' => '2026-03-28', 'due_time' => '15:00', 'tracked' => true,
+    ]);
+    $sections = array_column(tl_front_tracked(['q' => '远期排序'])['sections'], null, 'id');
+    $entries = $sections['nodate']['entries'];
+    same([$series, $afternoon, $later, $undated], array_map(
+        static fn (array $entry): int => (int) $entry['task']['id'], $entries
+    ));
+    same('2026-03-28', $entries[0]['date']);
+    same('/tracked/task/12/2026-03-28/?cat=3&q=two+words', tl_task_edit_return(12, [
+        'tab' => 'tracked', 'date' => '2026-03-28', 'cat' => '3', 'q' => 'two words',
+    ]));
+    same(null, tl_task_edit_return(12, ['tab' => '//foreign.test']));
+};
 $test['清理、范围裁剪及备份往返'] = static function (): void {
     $task = tl_task_create([
         'title' => '月末', 'due_date' => '2025-12-31', 'repeat_unit' => 'month', 'repeat_interval' => 1,
