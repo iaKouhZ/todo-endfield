@@ -174,14 +174,13 @@ try {
             $pdo = db();
             $pdo->beginTransaction();
             try {
-                $previousCompletions = $id > 0 ? array_column(tl_task_subitems($id), 'own_completed_at', 'id') : [];
                 if ($id > 0) {
                     tl_task_update($id, $input);
                     $taskId = $id;
                 } else {
                     $taskId = tl_task_create($input);
                 }
-                tl_subitems_save_rows($taskId, $rows, $previousCompletions);
+                tl_subitems_save_rows($taskId, $rows);
                 $pdo->commit();
             } catch (Throwable $e) {
                 $pdo->rollBack();

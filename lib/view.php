@@ -343,14 +343,13 @@ function tl_subitem_deadline_fields(array $subitem = [], ?int $index = null, boo
     <?php
 }
 
-function tl_completion_field(?string $completedAt, bool $required = false, string $name = 'completed_at', ?string $latest = null): void
+function tl_completion_field(?string $completedAt, bool $required = false, string $name = 'completed_at'): void
 {
     ?>
     <label class="tl-form__row">
       <span class="tl-form__label">完成时间</span>
       <input class="tl-form__input" type="datetime-local" name="<?= e($name) ?>"
-             value="<?= e(str_replace(' ', 'T', substr($completedAt ?? '', 0, 16))) ?>" <?= $required ? 'required' : '' ?>
-             <?php if ($latest !== null): ?>max="<?= e(str_replace(' ', 'T', substr($latest, 0, 16))) ?>"<?php endif; ?>>
+             value="<?= e(str_replace(' ', 'T', substr($completedAt ?? '', 0, 16))) ?>" <?= $required ? 'required' : '' ?>>
     </label>
     <?php
 }
@@ -467,6 +466,7 @@ function tl_detail_view(?array $entry, bool $admin, string $backUrl = '', string
             $sid = (int) $sub['id'];
             $sdone = (int) ($sub['done'] ?? 0) === 1 || $status === 'done';
             $subCompletedAt = $sdone ? $sub['effective_completed_at'] : null;
+            $sub = tl_subitem_effective_deadline($sub, $task, $date);
             ?>
             <li class="tl-detail__subitem" data-completed-at="<?= e($subCompletedAt ?? '') ?>">
               <?php if ($admin): ?>
@@ -500,8 +500,7 @@ function tl_detail_view(?array $entry, bool $admin, string $backUrl = '', string
                         <input type="hidden" name="task_id" value="<?= $id ?>">
                         <input type="hidden" name="subitem_id" value="<?= $sid ?>">
                         <input type="hidden" name="back" value="<?= e($subBack) ?>">
-                        <?php tl_completion_field($sub['own_completed_at'], $status !== 'done',
-                            latest: $status === 'done' ? $task['completed_at'] : null); ?>
+                        <?php tl_completion_field($sub['own_completed_at'], $status !== 'done'); ?>
                         <button class="tl-action eds-button" type="submit">保存完成时间</button>
                       </form>
                     </details>

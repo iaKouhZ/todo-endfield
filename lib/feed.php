@@ -143,6 +143,50 @@ function tl_next_open_occurrence(array $task, DateTimeImmutable $today, DateTime
     return null;
 }
 
+function tl_due_subitems_by_task(DateTimeImmutable $from, DateTimeImmutable $to, array $tasks, array $occurrenceMap): array
+{
+    $stmt = db()->prepare(
+        "SELECT s.id, s.task_id, s.title, s.due_date, s.due_time, s.position
+         FROM task_subitems s JOIN tasks t ON t.id = s.task_id
+         WHERE t.tracked = 1 AND t.status <> 'done' AND s.done = 0
+           AND (s.due_date BETWEEN ? AND ? OR (s.due_date IS NULL AND t.due_date IS NOT NULL))"
+    );
+    $start = tl_ymd($from);
+    $end = tl_ymd($to);
+    $stmt->execute([$start, $end]);
+    $parents = array_column($tasks, null, 'id');
+    $nextByTask = [];
+    $byTask = [];
+    foreach ($stmt as $row) {
+        $id = (int) $row['task_id'];
+        $parent = $parents[$id] ?? null;
+        if ($parent === null) {
+            continue;
+        }
+        $next = null;
+        if ($row['due_date'] === null && tl_task_repeat($parent) !== null) {
+            if (!array_key_exists($id, $nextByTask)) {
+                $nextByTask[$id] = tl_next_open_occurrence($parent, $from, $to, $occurrenceMap);
+            }
+            $next = $nextByTask[$id];
+            if ($next === null) {
+                continue;
+            }
+        }
+        $row = tl_subitem_effective_deadline($row, $parent, $next);
+        if ($row['due_date'] !== null && $row['due_date'] >= $start && $row['due_date'] <= $end) {
+            $byTask[$id][] = $row;
+        }
+    }
+    foreach ($byTask as &$rows) {
+        usort($rows, static fn (array $a, array $b): int =>
+            [$a['due_date'], $a['due_time'] ?? '23:59', $a['position'], $a['id']]
+            <=> [$b['due_date'], $b['due_time'] ?? '23:59', $b['position'], $b['id']]);
+    }
+    unset($rows);
+    return $byTask;
+}
+
 function tl_front_pinned(array $filters = [], string $scope = 'tracked', array $dueSubitems = [], ?array $trackedTasks = null): array
 {
     $today = tl_today();
@@ -240,7 +284,7 @@ function tl_front_tracked(array $filters = [], ?array $tasks = null): array
     $weekEnd = $today->modify('+' . $weekTo . ' days');
     $maxInterval = max([1, ...array_map(static fn (array $task): int => (int) ($task['repeat_interval'] ?? 1), $tasks)]);
     $occurrenceMap = tl_feed_occurrence_map($tasks, $today, $weekEnd->modify("+$maxInterval months"), true);
-    $subitems = tl_due_subitems_by_task($today, $weekEnd);
+    $subitems = tl_due_subitems_by_task($today, $weekEnd, $tasks, $occurrenceMap);
 
     $week = [];
     $nodate = [];
@@ -271,7 +315,8 @@ function tl_front_tracked(array $filters = [], ?array $tasks = null): array
         $dates = $repeat === null ? [] : tl_occurrences_between($task, $today, $weekEnd);
 
         if (isset($subitems[$id])) {
-            $date = $dates[0] ?? $task['due_date'];
+            $date = $repeat === null ? $task['due_date']
+                : (tl_next_open_occurrence($task, $today, $weekEnd, $occurrenceMap) ?? $dates[0] ?? $task['due_date']);
             $occurrence = $repeat !== null && $date !== null;
             $done = $occurrence && isset($occurrenceMap[$id . '|' . $date]);
             $entry = tl_entry($task, $date, $done, $occurrence, $occurrenceMap);

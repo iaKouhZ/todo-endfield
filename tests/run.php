@@ -181,16 +181,22 @@ $test['追踪中的置顶任务保留近期子任务且不重复分组'] = stati
         '逾期' => '2026-03-19', '未设截止' => null, '重复' => '2026-03-24',
     ];
     $ids = [];
+    $expectedChildren = [];
     foreach ($dates as $label => $due) {
         $task = tl_task_create([
             'title' => '置顶边界 ' . $label, 'due_date' => $due, 'tracked' => true,
         ] + ($label === '重复' ? ['repeat_unit' => 'day', 'repeat_interval' => 1] : []));
         $ids[] = $task;
         tl_task_set_pin($task, 1);
-        tl_subitem_add($task, '窗口上界', ['due_date' => '2026-03-27']);
-        tl_subitem_add($task, '窗口下界', ['due_date' => '2026-03-20']);
-        tl_subitem_add($task, '窗口外', ['due_date' => '2026-03-28']);
-        $done = tl_subitem_add($task, '已完成子任务', ['due_date' => '2026-03-20']);
+        $expectedChildren[$task] = [];
+        foreach (['2026-03-20' => '窗口下界', '2026-03-27' => '窗口上界'] as $childDate => $childTitle) {
+            if ($due === null || $childDate <= $due) {
+                tl_subitem_add($task, $childTitle, ['due_date' => $childDate]);
+                $expectedChildren[$task][] = $childTitle;
+            }
+        }
+        tl_subitem_add($task, '窗口外', ['due_date' => '2026-03-19']);
+        $done = tl_subitem_add($task, '已完成子任务', ['due_date' => min($due ?? '2026-03-20', '2026-03-20')]);
         tl_subitem_set_done($done, $task, true);
     }
     $feed = tl_front_tracked($filters);
@@ -201,7 +207,7 @@ $test['追踪中的置顶任务保留近期子任务且不重复分组'] = stati
     foreach ($ids as $index => $id) {
         $date = array_values($dates)[$index];
         $entry = $entries[$id . '@' . ($date ?? '-')];
-        same(['窗口下界', '窗口上界'], array_column($entry['due_subitems'], 'title'));
+        same($expectedChildren[$id], array_column($entry['due_subitems'] ?? [], 'title'));
     }
     tl_task_set_pin($ids[0], 0);
     $feed = tl_front_tracked($filters);
@@ -221,27 +227,59 @@ $test['重复任务代表条目跳过已完成的发生'] = static function (): 
     same('2026-03-22', tl_front_pinned($filters)['entries'][0]['date']);
     same('2026-03-22', tl_front_scope('all', $filters)['entries'][0]['date']);
 };
-$test['子任务默认继承主任务完成时间且不能晚于主任务'] = static function (): void {
+$test['子任务继承主任务截止日期和时间并校验上限'] = static function (): void {
+    $id = tl_task_create([
+        'title' => '子任务截止验证', 'due_date' => '2026-03-22', 'due_time' => '15:00', 'tracked' => true,
+    ]);
+    $inherited = tl_subitem_add($id, '完全继承');
+    tl_subitem_add($id, '同日跟随时刻', ['due_date' => '2026-03-22']);
+    tl_subitem_add($id, '较早日期', ['due_date' => '2026-03-21']);
+    rejects(static fn () => tl_subitem_add($id, '跨日超期', ['due_date' => '2026-03-23']), InvalidArgumentException::class);
+    rejects(static fn () => tl_subitem_add($id, '同日超期', [
+        'due_date' => '2026-03-22', 'due_time' => '15:01',
+    ]), InvalidArgumentException::class);
+    rejects(static fn () => tl_subitems_save_rows($id, [[
+        'id' => $inherited, 'title' => '被编辑的子任务', 'due_date' => '2026-03-23',
+    ]]), InvalidArgumentException::class);
+    $feed = tl_front_tracked(['q' => '子任务截止验证']);
+    $rows = array_column($feed['due_subitems'][$id], null, 'title');
+    same(null, array_column(tl_task_subitems($id), null, 'id')[$inherited]['due_date']);
+    same('2026-03-22', $rows['完全继承']['due_date']);
+    same('15:00', $rows['完全继承']['due_time']);
+    same('15:00', $rows['同日跟随时刻']['due_time']);
+    same(null, $rows['较早日期']['due_time']);
+
+    $series = tl_task_create([
+        'title' => '重复主任务截止验证', 'due_date' => '2026-03-20', 'due_time' => '15:00',
+        'repeat_unit' => 'day', 'repeat_interval' => 1, 'tracked' => true,
+    ]);
+    tl_subitem_add($series, '跟随下一次发生');
+    tl_complete_occurrence($series, '2026-03-20', true);
+    $feed = tl_front_tracked(['q' => '重复主任务截止验证']);
+    same('2026-03-21', $feed['due_subitems'][$series][0]['due_date']);
+    same('15:00', $feed['due_subitems'][$series][0]['due_time']);
+};
+$test['子任务独立完成记录当前时间，随主任务完成时继承时间'] = static function (): void {
     $id = tl_task_create(['title' => '主任务完成时间']);
-    $child = tl_subitem_add($id, '子任务');
-    tl_subitem_set_done($child, $id, true);
-    same(null, tl_task_subitems($id)[0]['own_completed_at']);
+    $standalone = tl_subitem_add($id, '独立完成');
+    $inherited = tl_subitem_add($id, '随主任务完成');
+    tl_subitem_set_done($standalone, $id, true);
+    same('2026-03-20 12:00:00', array_column(tl_task_subitems($id), 'own_completed_at', 'id')[$standalone]);
+    $edit = tl_task_create(['title' => '编辑表单内勾选']);
+    tl_subitems_save_rows($edit, [['id' => 0, 'title' => '新行', 'done' => true]]);
+    same('2026-03-20 12:00:00', tl_task_subitems($edit)[0]['own_completed_at']);
+
     tl_task_set_status($id, 'done', '2026-03-20 10:00:29');
-    same(null, tl_task_subitems($id)[0]['own_completed_at']);
-    same('2026-03-20 10:00:29', tl_task_subitems($id)[0]['effective_completed_at']);
-    rejects(static fn () => tl_subitem_set_done($child, $id, true, '2026-03-20 10:01:00'), InvalidArgumentException::class);
-    tl_subitem_set_done($child, $id, true, '2026-03-20 09:59:00');
-    same('2026-03-20 09:59:00', tl_task_subitems($id)[0]['effective_completed_at']);
-    tl_subitem_set_done($child, $id, true, null, true);
+    $rows = array_column(tl_task_subitems($id), null, 'id');
+    same('2026-03-20 12:00:00', $rows[$standalone]['effective_completed_at']);
+    same(1, (int) $rows[$inherited]['done']);
+    same(null, $rows[$inherited]['own_completed_at']);
+    same('2026-03-20 10:00:29', $rows[$inherited]['effective_completed_at']);
+    tl_subitem_set_done($inherited, $id, true, '2026-03-20 10:01:00');
+    same('2026-03-20 10:01:00', array_column(tl_task_subitems($id), 'effective_completed_at', 'id')[$inherited]);
+    tl_subitem_set_done($inherited, $id, true, null, true);
     tl_task_set_status($id, 'done', '2026-03-20 11:00:00');
-    same('2026-03-20 11:00:00', tl_task_subitems($id)[0]['effective_completed_at']);
-    $row = ['id' => $child, 'title' => '子任务', 'completed_at' => '2026-03-20T11:01'];
-    rejects(static fn () => tl_subitems_save_rows($id, [$row]), InvalidArgumentException::class);
-    $row['completed_at'] = '2026-03-20T10:00';
-    tl_subitems_save_rows($id, [$row]);
-    same('2026-03-20 10:00:00', tl_task_subitems($id)[0]['effective_completed_at']);
-    tl_task_set_status($id, 'done', '2026-03-20 09:00:00');
-    same('2026-03-20 09:00:00', tl_task_subitems($id)[0]['effective_completed_at']);
+    same('2026-03-20 11:00:00', array_column(tl_task_subitems($id), 'effective_completed_at', 'id')[$inherited]);
 };
 $test['清理、范围裁剪及备份往返'] = static function (): void {
     $task = tl_task_create([
