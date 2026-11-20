@@ -20,18 +20,30 @@ const TL_BACKUP_TABLES = [
     ],
 ];
 
+function tl_backup_read(PDO $pdo): array
+{
+    $out = ['version' => 1, 'exported_at' => tl_now()->format('Y-m-d H:i:s')];
+    foreach (TL_BACKUP_TABLES as $table => $columns) {
+        $order = $table === 'task_occurrences' ? 'task_id, occur_date' : 'id';
+        $out[$table] = $pdo->query(
+            'SELECT ' . implode(', ', array_keys($columns)) . " FROM $table ORDER BY $order"
+        )->fetchAll();
+    }
+    return $out;
+}
+
+function tl_backup_previous(): ?array
+{
+    $json = db()->query("SELECT value FROM app_meta WHERE key = 'backup_previous'")->fetchColumn();
+    return $json === false ? null : json_decode($json, true, 64, JSON_THROW_ON_ERROR);
+}
+
 function tl_backup_export_json(): array
 {
     $pdo = db();
     $pdo->beginTransaction();
     try {
-        $out = ['version' => 1, 'exported_at' => tl_now()->format('Y-m-d H:i:s')];
-        foreach (TL_BACKUP_TABLES as $table => $columns) {
-            $order = $table === 'task_occurrences' ? 'task_id, occur_date' : 'id';
-            $out[$table] = $pdo->query(
-                'SELECT ' . implode(', ', array_keys($columns)) . " FROM $table ORDER BY $order"
-            )->fetchAll();
-        }
+        $out = tl_backup_read($pdo);
         $pdo->commit();
         return $out;
     } catch (Throwable $error) {
@@ -79,12 +91,16 @@ function tl_backup_valid_value(mixed $value, string $type): bool
     };
 }
 
-function tl_backup_import_json(array $payload): array
+function tl_backup_validate(array $payload): array
 {
     if (($payload['version'] ?? null) !== 1) {
         throw new InvalidArgumentException('不支持的 JSON 备份版本。');
     }
+    if (isset($payload['exported_at']) && !tl_backup_valid_value($payload['exported_at'], 'timestamp')) {
+        throw new InvalidArgumentException('备份缺少有效的备份时间。');
+    }
     $counts = [];
+    $primaryKeys = [];
     foreach (TL_BACKUP_TABLES as $table => $columns) {
         if (!is_array($payload[$table] ?? null) || !array_is_list($payload[$table])) {
             throw new InvalidArgumentException("备份缺少有效的 $table 数据。");
@@ -98,13 +114,33 @@ function tl_backup_import_json(array $payload): array
                     throw new InvalidArgumentException("备份 $table 第 " . ($index + 1) . " 行的 $field 无效。");
                 }
             }
+            $key = $table === 'task_occurrences' ? $row['task_id'] . '|' . $row['occur_date'] : $row['id'];
+            if (isset($primaryKeys[$table][$key])) {
+                throw new InvalidArgumentException("备份 $table 含重复记录。");
+            }
+            $primaryKeys[$table][$key] = true;
+            if ($table === 'tasks' && $row['category_id'] !== null && !isset($primaryKeys['categories'][$row['category_id']])
+                || ($table === 'task_occurrences' || $table === 'task_subitems') && !isset($primaryKeys['tasks'][$row['task_id']])) {
+                throw new InvalidArgumentException("备份 $table 含无效的关联 ID。");
+            }
         }
         $counts[$table] = count($payload[$table]);
     }
 
+    return $counts;
+}
+
+function tl_backup_import_json(array $payload, bool $savePrevious = false): array
+{
+    $counts = tl_backup_validate($payload);
     $pdo = db();
     $pdo->beginTransaction();
     try {
+        if ($savePrevious) {
+            $json = json_encode(tl_backup_read($pdo), JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
+            $pdo->prepare("INSERT INTO app_meta (key, value) VALUES ('backup_previous', ?)
+                           ON CONFLICT(key) DO UPDATE SET value = excluded.value")->execute([$json]);
+        }
         foreach (array_reverse(array_keys(TL_BACKUP_TABLES)) as $table) {
             $pdo->exec("DELETE FROM $table");
         }

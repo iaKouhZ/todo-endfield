@@ -166,19 +166,22 @@ try {
                     'done'         => !empty($_POST['subitem_done'][$i]),
                     'due_date'     => $_POST['subitem_due_date'][$i] ?? '',
                     'due_time'     => $_POST['subitem_due_time'][$i] ?? '',
-                    'completed_at' => $_POST['subitem_completed_at'][$i] ?? '',
                 ];
+                if (isset($_POST['subitem_completed_at'][$i])) {
+                    $rows[array_key_last($rows)]['completed_at'] = $_POST['subitem_completed_at'][$i];
+                }
             }
             $pdo = db();
             $pdo->beginTransaction();
             try {
+                $previousCompletions = $id > 0 ? array_column(tl_task_subitems($id), 'own_completed_at', 'id') : [];
                 if ($id > 0) {
                     tl_task_update($id, $input);
                     $taskId = $id;
                 } else {
                     $taskId = tl_task_create($input);
                 }
-                tl_subitems_save_rows($taskId, $rows);
+                tl_subitems_save_rows($taskId, $rows, $previousCompletions);
                 $pdo->commit();
             } catch (Throwable $e) {
                 $pdo->rollBack();
@@ -207,7 +210,7 @@ try {
             $subId = (int) ($_POST['subitem_id'] ?? 0);
             $done = (string) ($_POST['done'] ?? '1') === '1';
             $completedAt = $done ? tl_parse_completion_input($_POST['completed_at'] ?? '') : null;
-            tl_subitem_set_done($subId, $taskId, $done, $completedAt);
+            tl_subitem_set_done($subId, $taskId, $done, $completedAt, array_key_exists('completed_at', $_POST));
             $finish($completedAt !== null ? '已更新子任务完成时间。' : ($done ? '已完成子任务。' : '已恢复子任务为未完成。'));
         }
 
@@ -270,6 +273,7 @@ try {
             exit;
         }
 
+        case 'import_preview':
         case 'import': {
             $file = $_FILES['backup'] ?? [];
             if (($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
@@ -280,17 +284,38 @@ try {
                 throw new InvalidArgumentException('JSON 备份大小须在 10 MB 以内。');
             }
             try {
-                $payload = json_decode((string) file_get_contents($path), true, 64, JSON_THROW_ON_ERROR);
+                $json = (string) file_get_contents($path);
+                $payload = json_decode($json, true, 64, JSON_THROW_ON_ERROR);
             } catch (JsonException $error) {
                 throw new InvalidArgumentException('所选文件不是有效的 JSON 备份。', 0, $error);
             }
             if (!is_array($payload)) {
                 throw new InvalidArgumentException('所选文件不是有效的 JSON 备份。');
             }
-            $count = tl_backup_import_json($payload);
+            $digest = hash_hmac('sha256', $json, tl_csrf_token());
+            if ($op === 'import_preview') {
+                $counts = tl_backup_validate($payload);
+                $message = sprintf('备份时间：%s。包含 %d 个分类、%d 项待办、%d 条发生记录和 %d 个子任务。确认后将覆盖当前数据。',
+                    $payload['exported_at'] ?? '未知', $counts['categories'], $counts['tasks'],
+                    $counts['task_occurrences'], $counts['task_subitems']);
+                $finish($message, extra: ['digest' => $digest]);
+            }
+            if (!hash_equals($digest, (string) ($_POST['backup_digest'] ?? ''))) {
+                throw new InvalidArgumentException('请先预览当前选中的备份。');
+            }
+            $count = tl_backup_import_json($payload, savePrevious: true);
             $finish(sprintf('已恢复 %d 个分类、%d 项待办、%d 条发生记录和 %d 个子任务。',
                 $count['categories'], $count['tasks'], $count['task_occurrences'], $count['task_subitems']),
                 'ok', tl_admin_url(['view' => 'system']));
+        }
+
+        case 'import_rollback': {
+            $previous = tl_backup_previous();
+            if ($previous === null) {
+                throw new InvalidArgumentException('没有可恢复的导入前快照。');
+            }
+            tl_backup_import_json($previous, savePrevious: true);
+            $finish('已恢复上次操作前的数据。', 'ok', tl_admin_url(['view' => 'system']));
         }
 
         case 'revoke_sessions': {

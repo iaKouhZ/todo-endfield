@@ -12,6 +12,50 @@
 
   if (!window.TL || typeof window.TL.onPageInit !== 'function') return;
 
+  // 在通用确认监听之前取得备份摘要；实际导入仍由原本的确认对话框提交。
+  document.addEventListener('submit', async function (event) {
+    var form = event.target;
+    if (!(form instanceof HTMLFormElement) || !form.matches('[data-backup-import]') ||
+        form.elements.backup_digest.value) return;
+    event.preventDefault();
+    if (form.dataset.previewing) return;
+    var fileInput = form.elements.backup;
+    var file = fileInput.files[0];
+    if (!file) return;
+    var submit = form.querySelector('button[type=submit]');
+    var status = form.querySelector('[data-backup-preview]');
+    form.dataset.previewing = '1';
+    submit.disabled = true;
+    status.hidden = true;
+    var fields = new FormData(form);
+    fields.set('op', 'import_preview');
+    fields.set('ajax', '1');
+    try {
+      var response = await fetch(form.action, {method: 'POST', body: fields, credentials: 'same-origin'});
+      var result = await response.json();
+      if (!result.ok) throw new Error(result.message);
+      if (!form.isConnected || fileInput.files[0] !== file) return;
+      form.elements.backup_digest.value = result.digest;
+      submit.dataset.confirm = result.message;
+      submit.disabled = false;
+      form.requestSubmit(submit);
+    } catch (error) {
+      status.textContent = error instanceof SyntaxError ? '无法读取备份预览，请刷新页面后重试。' : error.message;
+      status.hidden = false;
+    } finally {
+      delete form.dataset.previewing;
+      submit.disabled = false;
+    }
+  }, true);
+
+  document.addEventListener('change', function (event) {
+    var form = event.target.form;
+    if (!form || !form.matches('[data-backup-import]') || event.target !== form.elements.backup) return;
+    form.elements.backup_digest.value = '';
+    delete form.querySelector('button[type=submit]').dataset.confirm;
+    form.querySelector('[data-backup-preview]').hidden = true;
+  });
+
   /* ------------------------------------------------------------ 删除分类对话框 */
   var pendingCatButton = null;
 

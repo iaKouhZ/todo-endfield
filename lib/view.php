@@ -175,7 +175,8 @@ function tl_row_view(array $entry, ?int $selectedId): void
     ], fn ($v) => $v !== null && $v !== '');
     $openUrl = tl_front_url($params);
     ?>
-<div class="<?= $classes ?>" data-task-row data-task-id="<?= $id ?>" data-occur-date="<?= e($date ?? '') ?>">
+<div class="<?= $classes ?>" data-task-row data-task-id="<?= $id ?>" data-occur-date="<?= e($date ?? '') ?>"
+     data-due-date="<?= e($date ?? '') ?>" data-due-time="<?= e($task['due_time'] ?? '') ?>">
   <a class="tl-row__link" href="<?= e($openUrl) ?>">
     <span class="tl-row__main">
       <span class="tl-row__title"><?= e($task['title']) ?></span>
@@ -201,7 +202,8 @@ function tl_row_view(array $entry, ?int $selectedId): void
     <?php if (!empty($entry['due_subitems'])): ?>
       <ul class="tl-row__subitems">
         <?php foreach ($entry['due_subitems'] as $subitem): ?>
-          <li>
+          <li data-subtask-id="<?= (int) $subitem['id'] ?>" data-due-date="<?= e($subitem['due_date']) ?>"
+              data-due-time="<?= e($subitem['due_time'] ?? '') ?>">
             <span><?= e($subitem['title']) ?></span>
             <span class="tl-row__subdue"><?= e(tl_due_label($subitem)) ?></span>
           </li>
@@ -334,20 +336,21 @@ function tl_subitem_deadline_fields(array $subitem = [], ?int $index = null, boo
       </label>
       <?php if ($index !== null && !empty($subitem['id'])): ?>
         <div class="tl-subitems-completion">
-          <?php tl_completion_field($subitem['completed_at'], name: 'subitem_completed_at' . $suffix); ?>
+          <?php tl_completion_field($subitem['own_completed_at'] ?? null, name: 'subitem_completed_at' . $suffix); ?>
         </div>
       <?php endif; ?>
     </div>
     <?php
 }
 
-function tl_completion_field(?string $completedAt, bool $required = false, string $name = 'completed_at'): void
+function tl_completion_field(?string $completedAt, bool $required = false, string $name = 'completed_at', ?string $latest = null): void
 {
     ?>
     <label class="tl-form__row">
       <span class="tl-form__label">完成时间</span>
       <input class="tl-form__input" type="datetime-local" name="<?= e($name) ?>"
-             value="<?= e(str_replace(' ', 'T', substr($completedAt ?? '', 0, 16))) ?>" <?= $required ? 'required' : '' ?>>
+             value="<?= e(str_replace(' ', 'T', substr($completedAt ?? '', 0, 16))) ?>" <?= $required ? 'required' : '' ?>
+             <?php if ($latest !== null): ?>max="<?= e(str_replace(' ', 'T', substr($latest, 0, 16))) ?>"<?php endif; ?>>
     </label>
     <?php
 }
@@ -463,9 +466,9 @@ function tl_detail_view(?array $entry, bool $admin, string $backUrl = '', string
             <?php
             $sid = (int) $sub['id'];
             $sdone = (int) ($sub['done'] ?? 0) === 1 || $status === 'done';
-            $subCompletedAt = $sdone ? $sub['completed_at'] : null;
+            $subCompletedAt = $sdone ? $sub['effective_completed_at'] : null;
             ?>
-            <li class="tl-detail__subitem">
+            <li class="tl-detail__subitem" data-completed-at="<?= e($subCompletedAt ?? '') ?>">
               <?php if ($admin): ?>
                 <form method="post" action="<?= e(tl_action_url()) ?>" class="tl-detail__subform">
                   <?= tl_csrf_field() ?>
@@ -495,7 +498,8 @@ function tl_detail_view(?array $entry, bool $admin, string $backUrl = '', string
                         <input type="hidden" name="task_id" value="<?= $id ?>">
                         <input type="hidden" name="subitem_id" value="<?= $sid ?>">
                         <input type="hidden" name="back" value="<?= e($subBack) ?>">
-                        <?php tl_completion_field($subCompletedAt, true); ?>
+                        <?php tl_completion_field($sub['own_completed_at'], $status !== 'done',
+                            latest: $status === 'done' ? $task['completed_at'] : null); ?>
                         <button class="tl-action eds-button" type="submit">保存完成时间</button>
                       </form>
                     </details>

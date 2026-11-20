@@ -509,9 +509,12 @@ function tl_subitem_title_validate(string $title): string
 function tl_task_subitems(int $taskId): array
 {
     $stmt = db()->prepare(
-        "SELECT id, task_id, title, due_date, due_time, done, completed_at, position, created_at, updated_at
-         FROM task_subitems WHERE task_id = ?
-         ORDER BY due_date IS NULL, due_date, COALESCE(due_time, '23:59'), position, id"
+        "SELECT s.*, s.completed_at AS own_completed_at,
+            CASE WHEN t.status = 'done' AND t.completed_at IS NOT NULL THEN
+                MIN(COALESCE(s.completed_at, t.completed_at), t.completed_at)
+            ELSE s.completed_at END AS effective_completed_at
+         FROM task_subitems s JOIN tasks t ON t.id = s.task_id WHERE s.task_id = ?
+         ORDER BY s.due_date IS NULL, s.due_date, COALESCE(s.due_time, '23:59'), s.position, s.id"
     );
     $stmt->execute([$taskId]);
     return $stmt->fetchAll();
@@ -520,7 +523,7 @@ function tl_task_subitems(int $taskId): array
 function tl_due_subitems_by_task(DateTimeImmutable $from, DateTimeImmutable $to): array
 {
     $stmt = db()->prepare(
-        "SELECT s.task_id, s.title, s.due_date, s.due_time
+        "SELECT s.id, s.task_id, s.title, s.due_date, s.due_time
          FROM task_subitems s JOIN tasks t ON t.id = s.task_id
          WHERE t.tracked = 1 AND t.status <> 'done' AND s.done = 0 AND s.due_date BETWEEN ? AND ?
          ORDER BY s.due_date, COALESCE(s.due_time, '23:59'), s.position, s.id"
@@ -538,8 +541,9 @@ function tl_subitems_sync_with_parent_status(int $taskId, string $status, string
 {
     if ($status === 'done') {
         $now = tl_now()->format('Y-m-d H:i:s');
-        db()->prepare('UPDATE task_subitems SET done = 1, completed_at = ?, updated_at = ?
-                       WHERE task_id = ? AND done = 0')->execute([$completedAt, $now, $taskId]);
+        db()->prepare('UPDATE task_subitems SET done = 1, completed_at = NULL, updated_at = ?
+                       WHERE task_id = ? AND (done = 0 OR completed_at > ?)')
+            ->execute([$now, $taskId, $completedAt]);
     } elseif ($previousStatus === 'done') {
         $now = tl_now()->format('Y-m-d H:i:s');
         db()->prepare('UPDATE task_subitems SET done = 0, completed_at = NULL, updated_at = ?
@@ -580,29 +584,44 @@ function tl_subitem_delete(int $subId, int $taskId): void
     }
 }
 
-function tl_subitem_set_done(int $subId, int $taskId, bool $done, ?string $completedAt = null): void
+function tl_validate_subitem_completion(?string $completedAt, ?string $parentCompletion): void
 {
-    $editingCompletion = $done && $completedAt !== null;
-    $now = tl_now()->format('Y-m-d H:i:s');
-    $stmt = db()->prepare(
-        'UPDATE task_subitems SET done = ?, completed_at = CASE WHEN ? THEN COALESCE(?, completed_at, ?) END,
-         updated_at = ? WHERE id = ? AND task_id = ?
-         AND (? OR EXISTS (SELECT 1 FROM tasks WHERE id = task_subitems.task_id AND status <> \'done\'))'
-    );
-    $stmt->execute([(int) $done, (int) $done, $completedAt, $now, $now, $subId, $taskId, (int) $editingCompletion]);
-    if ($stmt->rowCount() === 0) {
-        if (!$editingCompletion && (tl_task($taskId)['status'] ?? null) === 'done') {
-            throw new InvalidArgumentException('主任务已完成时不能切换子任务状态；请先恢复主任务为未完成。');
-        }
+    if ($parentCompletion !== null && $completedAt !== null && $completedAt > $parentCompletion) {
+        throw new InvalidArgumentException('子任务完成时间不能晚于主任务完成时间。');
+    }
+}
+
+function tl_subitem_set_done(int $subId, int $taskId, bool $done, ?string $completedAt = null, bool $editTime = false): void
+{
+    $parent = tl_task($taskId);
+    $editingCompletion = $done && ($editTime || $completedAt !== null);
+    $parentDone = ($parent['status'] ?? null) === 'done';
+    if ($parentDone && !$editingCompletion) {
+        throw new InvalidArgumentException('主任务已完成时不能切换子任务状态；请先恢复主任务为未完成。');
+    }
+
+    $stamp = db()->prepare('SELECT completed_at FROM task_subitems WHERE id = ? AND task_id = ?');
+    $stamp->execute([$subId, $taskId]);
+    $previous = $stamp->fetch(PDO::FETCH_ASSOC);
+    if ($previous === false) {
         throw new InvalidArgumentException('子任务不存在。');
     }
+    $old = $previous['completed_at'];
+    if ($completedAt !== null && $old !== null && $completedAt === substr($old, 0, 16) . ':00') {
+        $completedAt = $old;
+    }
+    tl_validate_subitem_completion($completedAt, $parentDone ? $parent['completed_at'] : null);
+    $now = tl_now()->format('Y-m-d H:i:s');
+    $value = $done ? ($editingCompletion && $parentDone ? $completedAt : ($completedAt ?? $old ?? $now)) : null;
+    db()->prepare('UPDATE task_subitems SET done = ?, completed_at = ?, updated_at = ? WHERE id = ? AND task_id = ?')
+        ->execute([(int) $done, $value, $now, $subId, $taskId]);
 }
 
 /**
  * 保存后台编辑的整表子任务（按行 id / 标题 / 是否完成）。
  * @param list<array{id:int, title:string, done:bool, due_date:string, due_time:string, completed_at:string}> $rows
  */
-function tl_subitems_save_rows(int $taskId, array $rows): void
+function tl_subitems_save_rows(int $taskId, array $rows, ?array $beforeParentEdit = null): void
 {
     $task = tl_task($taskId);
     if ($task === null) {
@@ -610,7 +629,9 @@ function tl_subitems_save_rows(int $taskId, array $rows): void
     }
     $pdo = db();
     $now = tl_now()->format('Y-m-d H:i:s');
-    $defaultCompletion = $task['completed_at'] ?? $now;
+    $parentDone = $task['status'] === 'done';
+    $defaultCompletion = $parentDone ? null : $now;
+    $previous = array_column(tl_task_subitems($taskId), 'own_completed_at', 'id');
     $keep = [];
     $pos = 0;
     foreach ($rows as $row) {
@@ -623,16 +644,23 @@ function tl_subitems_save_rows(int $taskId, array $rows): void
         [$dueDate, $dueTime] = tl_validate_deadline($row);
         $done = (int) (!empty($row['done']) || $task['status'] === 'done');
         $completedAt = $done ? tl_parse_completion_input($row['completed_at'] ?? '') : null;
+        $old = $previous[$id] ?? null;
+        $original = ($beforeParentEdit ?? $previous)[$id] ?? null;
+        if ($completedAt !== null && $original !== null && $completedAt === substr($original, 0, 16) . ':00') {
+            $completedAt = $old;
+        }
+        tl_validate_subitem_completion($completedAt, $parentDone ? $task['completed_at'] : null);
+        if ($done && $completedAt === null && (!$parentDone || !array_key_exists('completed_at', $row))) {
+            $completedAt = $old ?? $defaultCompletion;
+        }
         $pos += 10;
         if ($id > 0) {
             $stmt = $pdo->prepare(
                 'UPDATE task_subitems SET title = ?, due_date = ?, due_time = ?, done = ?,
-                 completed_at = CASE WHEN ? THEN COALESCE(
-                     NULLIF(?, substr(completed_at, 1, 16) || \':00\'), completed_at, ?
-                 ) END,
+                 completed_at = ?,
                  position = ?, updated_at = ? WHERE id = ? AND task_id = ?'
             );
-            $stmt->execute([$title, $dueDate, $dueTime, $done, $done, $completedAt, $defaultCompletion, $pos, $now, $id, $taskId]);
+            $stmt->execute([$title, $dueDate, $dueTime, $done, $completedAt, $pos, $now, $id, $taskId]);
             if ($stmt->rowCount() > 0) {
                 $keep[] = $id;
             }
@@ -641,7 +669,7 @@ function tl_subitems_save_rows(int $taskId, array $rows): void
                 'INSERT INTO task_subitems (task_id, title, due_date, due_time, done, completed_at, position, created_at, updated_at)
                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
             );
-            $stmt->execute([$taskId, $title, $dueDate, $dueTime, $done, $done ? ($completedAt ?? $defaultCompletion) : null, $pos, $now, $now]);
+            $stmt->execute([$taskId, $title, $dueDate, $dueTime, $done, $completedAt, $pos, $now, $now]);
             $keep[] = (int) $pdo->lastInsertId();
         }
     }

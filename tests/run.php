@@ -208,6 +208,39 @@ $test['追踪中的置顶任务保留近期子任务且不重复分组'] = stati
     same(1, $feed['counts']['week']);
     same(count($ids) - 1, tl_front_pinned($filters, 'tracked', $feed['due_subitems'])['count']);
 };
+$test['重复任务代表条目跳过已完成的发生'] = static function (): void {
+    $id = tl_task_create([
+        'title' => '下一次未完成', 'due_date' => '2026-03-19', 'repeat_unit' => 'day',
+        'repeat_interval' => 1, 'tracked' => true, 'pinned' => true,
+    ]);
+    $filters = ['q' => '下一次未完成'];
+    same('2026-03-19', tl_front_pinned($filters)['entries'][0]['date']);
+    foreach (['2026-03-19', '2026-03-20', '2026-03-21'] as $day) {
+        tl_complete_occurrence($id, $day, true);
+    }
+    same('2026-03-22', tl_front_pinned($filters)['entries'][0]['date']);
+    same('2026-03-22', tl_front_scope('all', $filters)['entries'][0]['date']);
+};
+$test['子任务默认继承主任务完成时间且不能晚于主任务'] = static function (): void {
+    $id = tl_task_create(['title' => '主任务完成时间']);
+    $child = tl_subitem_add($id, '子任务');
+    tl_task_set_status($id, 'done', '2026-03-20 10:00:29');
+    same(null, tl_task_subitems($id)[0]['own_completed_at']);
+    same('2026-03-20 10:00:29', tl_task_subitems($id)[0]['effective_completed_at']);
+    rejects(static fn () => tl_subitem_set_done($child, $id, true, '2026-03-20 10:01:00'), InvalidArgumentException::class);
+    tl_subitem_set_done($child, $id, true, '2026-03-20 09:59:00');
+    same('2026-03-20 09:59:00', tl_task_subitems($id)[0]['effective_completed_at']);
+    tl_subitem_set_done($child, $id, true, null, true);
+    tl_task_set_status($id, 'done', '2026-03-20 11:00:00');
+    same('2026-03-20 11:00:00', tl_task_subitems($id)[0]['effective_completed_at']);
+    $row = ['id' => $child, 'title' => '子任务', 'completed_at' => '2026-03-20T11:01'];
+    rejects(static fn () => tl_subitems_save_rows($id, [$row]), InvalidArgumentException::class);
+    $row['completed_at'] = '2026-03-20T10:00';
+    tl_subitems_save_rows($id, [$row]);
+    same('2026-03-20 10:00:00', tl_task_subitems($id)[0]['effective_completed_at']);
+    tl_task_set_status($id, 'done', '2026-03-20 09:00:00');
+    same('2026-03-20 09:00:00', tl_task_subitems($id)[0]['effective_completed_at']);
+};
 $test['清理、范围裁剪及备份往返'] = static function (): void {
     $task = tl_task_create([
         'title' => '月末', 'due_date' => '2025-12-31', 'repeat_unit' => 'month', 'repeat_interval' => 1,
@@ -232,14 +265,18 @@ $test['清理、范围裁剪及备份往返'] = static function (): void {
         unlink($sqlite);
     }
     $empty = ['version' => 1, 'tasks' => [], 'categories' => [], 'task_occurrences' => [], 'task_subitems' => []];
-    tl_backup_import_json($empty);
+    same(0, tl_backup_validate($empty)['tasks']);
+    same($expected, tl_backup_export_json());
+    tl_backup_import_json($empty, savePrevious: true);
     same(0, tl_task_count());
+    same($expected, tl_backup_previous());
     tl_backup_import_json(json_decode(json_encode($expected, JSON_THROW_ON_ERROR), true, 64, JSON_THROW_ON_ERROR));
     same($expected, tl_backup_export_json());
     $invalid = $expected;
     $invalid['task_subitems'][0]['task_id'] = 999999;
     rejects(static fn () => tl_backup_import_json($invalid), InvalidArgumentException::class);
     same($expected, tl_backup_export_json());
+    same($expected, tl_backup_previous());
     same('2', tl_session_version());
 };
 $test['站内地址与 router 往返'] = static function () use ($tmp): void {

@@ -132,6 +132,17 @@ function tl_feed_occurrence_map(array $tasks, DateTimeImmutable $today, DateTime
     return tl_occurrence_map(array_column($tasks, 'id'), tl_ymd($start), tl_ymd($end));
 }
 
+function tl_next_open_occurrence(array $task, DateTimeImmutable $today, DateTimeImmutable $horizon, array $map): ?string
+{
+    $prefix = (int) $task['id'] . '|';
+    foreach (tl_occurrences_between($task, $today, $horizon) as $date) {
+        if (!isset($map[$prefix . $date])) {
+            return $date;
+        }
+    }
+    return null;
+}
+
 function tl_front_pinned(array $filters = [], string $scope = 'tracked', array $dueSubitems = [], ?array $trackedTasks = null): array
 {
     $today = tl_today();
@@ -160,7 +171,8 @@ function tl_front_pinned(array $filters = [], string $scope = 'tracked', array $
             if ($past !== null && !isset($occurrenceMap[$id . '|' . tl_ymd($past)])) {
                 $date = tl_ymd($past);
             } else {
-                $date = tl_occurrences_between($task, $today, $horizon)[0] ?? $date;
+                $date = tl_next_open_occurrence($task, $today, max($horizon, $dueDate), $occurrenceMap);
+                $occurrence = $date !== null;
             }
         }
 
@@ -391,7 +403,7 @@ function tl_front_scope(string $scope, array $filters = []): array
     $tasks = tl_tasks($filters + $scopeFilters);
     $today = tl_today();
     $horizon = $today->modify('+' . max(1, (int) cfg('front.horizon_days', 365)) . ' days');
-    $occurrenceMap = tl_feed_occurrence_map($tasks, $today, $horizon, false);
+    $occurrenceMap = tl_feed_occurrence_map($tasks, $today, $horizon, $scope === 'planned');
 
     $entries = [];
     $overdue = [];
@@ -404,14 +416,12 @@ function tl_front_scope(string $scope, array $filters = []): array
         $done = $task['status'] === 'done';
 
         if ($repeat !== null && !$done) {
-            $next = tl_occurrences_between($task, $today, $horizon);
-            if ($next !== []) {
-                $date = $next[0];
-                $occurrence = true;
-            } else {
-                $date = null;
-                $occurrence = false;
-            }
+            $past = $scope === 'planned' ? tl_occurrence_before($task, $today) : null;
+            $pastDate = $past?->format('Y-m-d');
+            $date = $pastDate !== null && !isset($occurrenceMap[(int) $task['id'] . '|' . $pastDate])
+                ? $pastDate
+                : tl_next_open_occurrence($task, $today, $horizon, $occurrenceMap);
+            $occurrence = $date !== null;
         }
 
         $rowDone = $done;

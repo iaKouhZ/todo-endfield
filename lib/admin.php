@@ -692,20 +692,29 @@ function tl_admin_render_system(array $data): void
             <button class="tl-action eds-button" type="submit" name="format" value="json">导出 JSON</button>
             <button class="tl-action eds-button" type="submit" name="format" value="sqlite">导出 SQLite</button>
           </form>
-          <form class="tl-form tl-backup-import" method="post" action="<?= e(tl_action_url()) ?>" enctype="multipart/form-data" data-no-pjax>
+          <form class="tl-form tl-backup-import" method="post" action="<?= e(tl_action_url()) ?>" enctype="multipart/form-data" data-no-pjax data-backup-import data-confirm-title="覆盖导入">
             <?= tl_csrf_field() ?>
             <input type="hidden" name="op" value="import">
+            <input type="hidden" name="backup_digest" value="">
             <input type="hidden" name="back" value="<?= e(tl_admin_url(['view' => 'system'])) ?>">
             <label class="tl-form__row">
               <span class="tl-form__label">JSON 备份文件（最多 10 MB）</span>
               <input class="tl-backup-file" type="file" name="backup" accept=".json,application/json" required>
             </label>
             <div class="tl-form__actions">
-              <button class="tl-action eds-button eds-button--danger" type="submit"
-                      data-confirm="导入备份将覆盖当前的分类、待办和完成记录。"
-                      data-confirm-title="覆盖导入">导入 JSON 备份</button>
+              <button class="tl-action eds-button eds-button--danger" type="submit">预览并导入</button>
             </div>
+            <p class="tl-card__note" role="status" data-backup-preview hidden></p>
           </form>
+          <?php if (db()->query("SELECT 1 FROM app_meta WHERE key = 'backup_previous'")->fetchColumn() !== false): ?>
+            <form class="tl-backup-import" method="post" action="<?= e(tl_action_url()) ?>"
+                  data-confirm="恢复上次操作前的快照。当前数据将替换为上一份快照。" data-confirm-title="撤销恢复">
+              <?= tl_csrf_field() ?>
+              <input type="hidden" name="op" value="import_rollback">
+              <input type="hidden" name="back" value="<?= e(tl_admin_url(['view' => 'system'])) ?>">
+              <button class="tl-action eds-button" type="submit">撤销上次恢复</button>
+            </form>
+          <?php endif; ?>
         </div>
 
         <div class="tl-card tl-card--raised">
